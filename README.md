@@ -27,7 +27,7 @@ Les données sont issues du projet [MovieLens](https://grouplens.org/datasets/mo
 
 ### 1. Cloner le dépôt
 ```bash
-git clone https://github.com/<votre-username>/movielens-recommender.git
+git clone https://github.com/fatouu50/MovieLens.git
 cd MovieLens
 ```
 
