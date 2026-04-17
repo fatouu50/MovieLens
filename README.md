@@ -57,7 +57,7 @@ L'application s'ouvre automatiquement sur `http://localhost:8501`
 ## Structure du projet
 
 ```
-movielens-recommender/
+MovieLens/
 ├── app.py                  # Interface Streamlit
 ├── requirements.txt
 ├── README.md
