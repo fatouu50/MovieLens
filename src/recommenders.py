@@ -202,8 +202,6 @@ def jaccard_genres(genres_a, genres_b):
     return len(set_a & set_b) / len(union)
 
 
-# reduction de redondance avec la méthode MMR 
-
 def mmr_rerank_items(candidates_df, items_df, n=10, lambda_param=0.75):
     """
     Réordonne les recommandations avec MMR pour réduire la redondance.
@@ -250,6 +248,7 @@ def mmr_rerank_items(candidates_df, items_df, n=10, lambda_param=0.75):
 
     result = pd.DataFrame(selected)
     return result.drop(columns=['genres'], errors='ignore')
+
 
 class ContentBasedRecommender:
     def __init__(self):
@@ -328,8 +327,6 @@ class ContentBasedRecommender:
         df = df.sort_values('score', ascending=False).head(n)
         return df[['item_id', 'title', 'genres_str', 'year', 'score']]
 
-
-
 # ─────────────────────────────────────────────────────────────
 # ÉVALUATION RMSE
 # ─────────────────────────────────────────────────────────────
@@ -370,4 +367,3 @@ def compute_rmse(user_cf_model, test_df, sample_size=500):
     if not errors:
         return None
     return round(np.sqrt(np.mean(errors)), 4)
-
