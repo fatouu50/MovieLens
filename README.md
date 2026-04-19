@@ -42,31 +42,73 @@ La performance du modèle User-Based CF est évaluée via le **RMSE** sur le jeu
 
 ---
 
+## Sécurité
+
+### Deux niveaux de protection
+
+**Niveau 1 — Transport réseau (TLS/SSL)**
+Le cadenas visible dans le navigateur. Il chiffre les données entre l'utilisateur et le serveur.
+- Les requêtes vers TMDB utilisent `https://` → chiffrement TLS actif automatiquement
+- En production sur Streamlit Cloud, TLS est fourni automatiquement par la plateforme
+- Rien à configurer — il est déjà actif.
+
+**Niveau 2 — Sécurité applicative (`src/security.py`)**
+Protège les données à l'intérieur du code.
+
+| Sécurité | Technique | Qui s'en occupe |
+|---|---|---|
+| Chiffrement réseau | TLS/SSL (https://) | Automatique — Streamlit Cloud |
+| Clé API cachée | Variables d'environnement (.env) | `src/security.py` |
+| Validation des entrées | Sanitisation + whitelist | `src/security.py` |
+| Contrôle des requêtes | Rate limiting + timeout + whitelist domaines | `src/security.py` |
+| Vérification au démarrage | `check_env()` | `src/security.py` |
+
+### Ce que fait `src/security.py`
+
+- **Chargement sécurisé de la clé TMDB** — cherche la clé dans Colab Secrets, puis variable d'environnement, puis fichier `.env` local (jamais dans le code)
+- **Validation des entrées utilisateur** — `validate_film_id()`, `validate_genre()`, `sanitize_search_query()` protègent contre les injections
+- **Requêtes HTTP sécurisées** — `safe_tmdb_request()` impose un timeout de 5s, un rate limiting (max 40 req/10s), une whitelist sur `api.themoviedb.org` et 2 tentatives automatiques en cas d'erreur
+- **Vérification au démarrage** — `check_env()` vérifie la clé TMDB, le dossier `data/`, les fichiers requis et que `.env` est bien dans `.gitignore`
+
+### Configuration de la clé TMDB
+
+```bash
+cp .env.example .env
+# Puis éditer .env :
+TMDB_API_KEY=ta_vraie_cle_ici
+```
+
+Le fichier `.env` est dans `.gitignore` — il ne sera **jamais** envoyé sur GitHub.
+
+---
+
 ## Installation & Lancement
 
 ### 1. Cloner le dépôt
-
 ```bash
 git clone https://github.com/fatouu50/MovieLens.git
 cd MovieLens
 ```
 
 ### 2. Créer un environnement virtuel
-
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate       # Linux / macOS
 .venv\Scripts\activate          # Windows
 ```
 
-### 3. Installer les dépendances
+### 3. Configurer la clé API
+```bash
+cp .env.example .env
+# Ajouter votre clé TMDB dans .env
+```
 
+### 4. Installer les dépendances
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Lancer l'application
-
+### 5. Lancer l'application
 ```bash
 streamlit run app.py
 ```
@@ -83,6 +125,7 @@ MovieLens/
 ├── setup_data.py           # Script de préparation des données
 ├── requirements.txt
 ├── README.md
+├── .env.example            # Template de configuration (sans vraie clé)
 ├── .gitignore
 ├── data/                   # Dataset MovieLens 100K
 │   ├── u.data              # 100 000 évaluations
@@ -95,7 +138,8 @@ MovieLens/
 └── src/
     ├── __init__.py
     ├── data_loader.py      # Chargement & préparation des données
-    └── recommenders.py     # Modèles de recommandation
+    ├── recommenders.py     # Modèles de recommandation
+    └── security.py         # Sécurité applicative centralisée
 ```
 
 ---
@@ -137,7 +181,6 @@ git checkout -b kadiga
 ```
 
 ### Workflow quotidien
-
 ```bash
 # 1. Se mettre à jour depuis main
 git pull origin main
