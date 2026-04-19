@@ -14,26 +14,21 @@ Système de recommandation de films basé sur le dataset MovieLens 100K, avec un
 
 Les données sont issues du projet [MovieLens](https://grouplens.org/datasets/movielens/100k/) (GroupLens Research).
 
-## Modèles implémentés
+## Modèle implémenté
 
 | Modèle | Description |
 |---|---|
-| **Popularité** | Baseline — recommande les films les mieux notés |
-| **User-Based CF** | Filtrage collaboratif — trouve des utilisateurs similaires |
-| **Item-Based CF** | Filtrage collaboratif — trouve des films similaires basé sur les notes |
-| **Content-Based** | Recommandation par similarité de genres |
+| **Content-Based** | Recommandation par similarité de genres — trouve des films similaires à partir des caractéristiques du contenu |
 
 ## Installation & Lancement
 
 ### 1. Cloner le dépôt
-
 ```bash
 git clone https://github.com/fatouu50/MovieLens.git
 cd MovieLens
 ```
 
 ### 2. Créer un environnement virtuel
-
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate       # Linux / macOS
@@ -41,13 +36,11 @@ source .venv/bin/activate       # Linux / macOS
 ```
 
 ### 3. Installer les dépendances
-
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 4. Lancer l'application
-
 ```bash
 streamlit run app.py
 ```
@@ -59,6 +52,7 @@ L'application s'ouvre automatiquement sur `http://localhost:8501`
 ```
 MovieLens/
 ├── app.py                  # Interface Streamlit
+├── setup_data.py           # Script de préparation des données
 ├── requirements.txt
 ├── README.md
 ├── .gitignore
@@ -73,24 +67,18 @@ MovieLens/
 └── src/
     ├── __init__.py
     ├── data_loader.py      # Chargement & préparation des données
-    └── recommenders.py     # Modèles de recommandation
+    └── recommenders.py     # Modèle de recommandation
 ```
 
 ## Pages de l'application
 
 - **Accueil & Stats** — Statistiques générales, distributions des notes, genres, démographie
-- **Reco Utilisateur** — Recommandations personnalisées (User-CF ou Item-CF)
-- **Films Similaires** — Trouver des films similaires à un film donné
+- **Films Similaires** — Trouver des films similaires à un film donné via similarité de genres
 - **Par Genre** — Recommandation par sélection de genres
-- **Evaluation** — Calcul du RMSE, comparaison des modèles
 
-## Metriques
+## Comment ça marche
 
-**RMSE** (Root Mean Square Error) — mesure l'écart entre la note prédite et la note réelle :
-
-```
-RMSE = sqrt( Sum(r_pred - r_real)^2 / n )
-```
+Le modèle Content-Based représente chaque film par un vecteur de genres (ex : Action, Comedy, Drama...) et calcule la **similarité cosinus** entre les films pour en trouver les plus proches. Aucune donnée utilisateur n'est nécessaire — le système se base uniquement sur les caractéristiques du film.
 
 ## Travail en equipe — Branches
 
@@ -119,15 +107,12 @@ git checkout -b kadiga
 ```
 
 ### Workflow quotidien
-
 ```bash
 # 1. Se mettre à jour depuis main
 git pull origin main
-
 # 2. Travailler sur ses fichiers, puis sauvegarder
 git add .
 git commit -m "Description de ce que tu as fait"
-
 # 3. Pousser sa branche sur GitHub
 git push origin nom-de-ta-branche
 ```
@@ -146,5 +131,5 @@ Une fois le travail validé, ouvrir une **Pull Request** sur GitHub depuis ta br
 
 ## Licence
 
-Dataset MovieLens : usage académique et non-commercial.
+Dataset MovieLens : usage académique et non-commercial.  
 Code : MIT License.
