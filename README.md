@@ -1,10 +1,10 @@
-# 🎬 MovieLens Recommender System
+# MovieLens Recommender System
 
 Système de recommandation de films basé sur le dataset **MovieLens 100K**, avec une interface interactive Streamlit.
 
 ---
 
-## 📊 Dataset
+## Dataset
 
 | Statistique | Valeur |
 |---|---|
@@ -18,7 +18,7 @@ Les données sont issues du projet [MovieLens](https://grouplens.org/datasets/mo
 
 ---
 
-## 🤖 Modèles implémentés
+## Modèles implémentés
 
 | Modèle | Description |
 |---|---|
@@ -29,7 +29,7 @@ Les données sont issues du projet [MovieLens](https://grouplens.org/datasets/mo
 
 ---
 
-## ⚙️ Comment ça marche
+## Comment ça marche
 
 Le système combine plusieurs approches complémentaires :
 
@@ -42,7 +42,7 @@ La performance du modèle User-Based CF est évaluée via le **RMSE** sur le jeu
 
 ---
 
-## 🚀 Installation & Lancement
+## Installation & Lancement
 
 ### 1. Cloner le dépôt
 
@@ -75,7 +75,7 @@ L'application s'ouvre automatiquement sur `http://localhost:8501`
 
 ---
 
-## 🗂️ Structure du projet
+## Structure du projet
 
 ```
 MovieLens/
@@ -100,7 +100,7 @@ MovieLens/
 
 ---
 
-## 📱 Pages de l'application
+## Pages de l'application
 
 - **Accueil & Stats** — Statistiques générales, distributions des notes, genres, démographie
 - **Recommandations personnalisées** — Recommandations User-Based CF ou Item-Based CF pour un utilisateur donné
@@ -110,7 +110,7 @@ MovieLens/
 
 ---
 
-## 👥 Travail en équipe — Branches
+## Travail en équipe — Branches
 
 Ce projet est développé en équipe. Chaque membre travaille sur sa propre branche avant de fusionner sur `main`.
 
@@ -156,7 +156,7 @@ Une fois le travail validé, ouvrir une **Pull Request** sur GitHub depuis ta br
 
 ---
 
-## 🛠️ Technologies
+## Technologies
 
 | Outil | Rôle |
 |---|---|
@@ -168,7 +168,7 @@ Une fois le travail validé, ouvrir une **Pull Request** sur GitHub depuis ta br
 
 ---
 
-## 📄 Licence
+## Licence
 
 Dataset MovieLens : usage académique et non-commercial.  
 Code : MIT License.
