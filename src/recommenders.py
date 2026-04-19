@@ -189,7 +189,7 @@ class ItemBasedCF:
 # ─────────────────────────────────────────────────────────────
 # RECOMMANDATION BASÉE SUR LE CONTENU
 # ─────────────────────────────────────────────────────────────
-
+# reduction de redondance avec MMR 
 def jaccard_genres(genres_a, genres_b):
     """Calcule la similarité Jaccard entre deux listes de genres."""
     set_a = set(genres_a) if genres_a else set()
