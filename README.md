@@ -1,34 +1,58 @@
-# MovieLens Recommender System
+# 🎬 MovieLens Recommender System
 
-Système de recommandation de films basé sur le dataset MovieLens 100K, avec une interface interactive Streamlit.
+Système de recommandation de films basé sur le dataset **MovieLens 100K**, avec une interface interactive Streamlit.
 
-## Dataset
+---
+
+## 📊 Dataset
 
 | Statistique | Valeur |
 |---|---|
 | Utilisateurs | 943 |
 | Films | 1 682 |
-| Evaluations | 100 000 |
+| Évaluations | 100 000 |
 | Notes | 1 à 5 étoiles |
 | Sparsité | ~93.7% |
 
 Les données sont issues du projet [MovieLens](https://grouplens.org/datasets/movielens/100k/) (GroupLens Research).
 
-## Modèle implémenté
+---
+
+## 🤖 Modèles implémentés
 
 | Modèle | Description |
 |---|---|
-| **Content-Based** | Recommandation par similarité de genres — trouve des films similaires à partir des caractéristiques du contenu |
+| **Baseline (Popularité)** | Recommande les films les mieux notés ayant reçu un minimum de votes — aucune personnalisation, sert de référence de comparaison |
+| **User-Based CF** | Filtrage collaboratif utilisateur-utilisateur — trouve des utilisateurs aux goûts similaires via similarité cosinus, puis prédit les notes par moyenne pondérée |
+| **Item-Based CF** | Filtrage collaboratif item-item — compare les films selon leurs patterns de notation communs pour recommander des films proches de ceux déjà appréciés |
+| **Content-Based** | Recommandation par similarité de genres — représente chaque film par un vecteur binaire de genres et calcule la similarité cosinus ; intègre un algorithme **MMR** (Maximal Marginal Relevance) pour diversifier les résultats |
 
-## Installation & Lancement
+---
+
+## ⚙️ Comment ça marche
+
+Le système combine plusieurs approches complémentaires :
+
+- **Baseline** : classe les films par note moyenne, filtré par un seuil minimum de votes pour éviter les biais sur peu d'évaluations.
+- **User-Based CF** : construit une matrice utilisateur × film, calcule la similarité cosinus entre utilisateurs, et prédit les notes manquantes via les *k* voisins les plus proches.
+- **Item-Based CF** : transpose la même logique sur les films — deux films sont similaires s'ils sont notés de façon cohérente par les mêmes utilisateurs.
+- **Content-Based** : encode les genres avec un `MultiLabelBinarizer`, calcule la similarité cosinus entre films, puis applique le **MMR** (Maximal Marginal Relevance) pour équilibrer pertinence et diversité dans les résultats.
+
+La performance du modèle User-Based CF est évaluée via le **RMSE** sur le jeu de test.
+
+---
+
+## 🚀 Installation & Lancement
 
 ### 1. Cloner le dépôt
+
 ```bash
 git clone https://github.com/fatouu50/MovieLens.git
 cd MovieLens
 ```
 
 ### 2. Créer un environnement virtuel
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate       # Linux / macOS
@@ -36,18 +60,22 @@ source .venv/bin/activate       # Linux / macOS
 ```
 
 ### 3. Installer les dépendances
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 4. Lancer l'application
+
 ```bash
 streamlit run app.py
 ```
 
 L'application s'ouvre automatiquement sur `http://localhost:8501`
 
-## Structure du projet
+---
+
+## 🗂️ Structure du projet
 
 ```
 MovieLens/
@@ -67,20 +95,22 @@ MovieLens/
 └── src/
     ├── __init__.py
     ├── data_loader.py      # Chargement & préparation des données
-    └── recommenders.py     # Modèle de recommandation
+    └── recommenders.py     # Modèles de recommandation
 ```
 
-## Pages de l'application
+---
+
+## 📱 Pages de l'application
 
 - **Accueil & Stats** — Statistiques générales, distributions des notes, genres, démographie
-- **Films Similaires** — Trouver des films similaires à un film donné via similarité de genres
-- **Par Genre** — Recommandation par sélection de genres
+- **Recommandations personnalisées** — Recommandations User-Based CF ou Item-Based CF pour un utilisateur donné
+- **Films Similaires** — Trouver des films similaires à un film donné (Item-Based CF ou Content-Based)
+- **Par Genre** — Recommandation par sélection de genres (Content-Based)
+- **Films Populaires** — Classement baseline par popularité
 
-## Comment ça marche
+---
 
-Le modèle Content-Based représente chaque film par un vecteur de genres (ex : Action, Comedy, Drama...) et calcule la **similarité cosinus** entre les films pour en trouver les plus proches. Aucune donnée utilisateur n'est nécessaire — le système se base uniquement sur les caractéristiques du film.
-
-## Travail en equipe — Branches
+## 👥 Travail en équipe — Branches
 
 Ce projet est développé en équipe. Chaque membre travaille sur sa propre branche avant de fusionner sur `main`.
 
@@ -107,12 +137,15 @@ git checkout -b kadiga
 ```
 
 ### Workflow quotidien
+
 ```bash
 # 1. Se mettre à jour depuis main
 git pull origin main
+
 # 2. Travailler sur ses fichiers, puis sauvegarder
 git add .
 git commit -m "Description de ce que tu as fait"
+
 # 3. Pousser sa branche sur GitHub
 git push origin nom-de-ta-branche
 ```
@@ -121,15 +154,21 @@ git push origin nom-de-ta-branche
 
 Une fois le travail validé, ouvrir une **Pull Request** sur GitHub depuis ta branche vers `main`.
 
-## Technologies
+---
 
-- Python 3.10+
-- Streamlit — Interface web
-- Pandas / NumPy — Manipulation des données
-- Scikit-learn — Similarité cosinus
-- Plotly — Visualisations interactives
+## 🛠️ Technologies
 
-## Licence
+| Outil | Rôle |
+|---|---|
+| Python 3.10+ | Langage principal |
+| Streamlit | Interface web interactive |
+| Pandas / NumPy | Manipulation des données |
+| Scikit-learn | Similarité cosinus, encodage des genres |
+| Plotly | Visualisations interactives |
+
+---
+
+## 📄 Licence
 
 Dataset MovieLens : usage académique et non-commercial.  
 Code : MIT License.
