@@ -113,6 +113,7 @@ st.markdown("""
   #MainMenu {visibility: hidden;}
   footer {visibility: hidden;}
   header {visibility: hidden;}
+  header [data-testid="collapsedControl"] {visibility: visible !important;}
 </style>
 """, unsafe_allow_html=True)
 # ─────────────────────────────────────────────
