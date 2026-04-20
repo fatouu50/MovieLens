@@ -112,8 +112,19 @@ st.markdown("""
   /* HIDE STREAMLIT BRANDING */
   #MainMenu {visibility: hidden;}
   footer {visibility: hidden;}
-  header {visibility: hidden;}
-  header [data-testid="collapsedControl"] {visibility: visible !important;}
+  header { visibility: hidden; }
+  [data-testid="collapsedControl"] {
+    visibility: visible !important;
+    display: flex !important;
+    position: fixed !important;
+    top: 14px !important;
+    left: 14px !important;
+    z-index: 999999 !important;
+    background: #13131a !important;
+    border: 1px solid #2a2a3a !important;
+    border-radius: 8px !important;
+    padding: 4px !important;
+  }
 </style>
 """, unsafe_allow_html=True)
 # ─────────────────────────────────────────────
