@@ -1,44 +1,67 @@
 """
-auth.py — Authentification sécurisée
+auth.py — Authentification sécurisée avec Supabase
 Sécurité : bcrypt (hachage mots de passe) + JWT (sessions) + HTTPS-ready
 """
 
 import bcrypt
 import jwt
-import json
 import os
 import re
 import time
 import hashlib
 import secrets
+import requests
+import json
 from datetime import datetime, timezone
-from pathlib import Path
 
 # ─────────────────────────────────────────────
 # CONFIG SÉCURITÉ
 # ─────────────────────────────────────────────
-USERS_FILE   = Path("users_db.json")
-SECRET_KEY   = os.environ.get("JWT_SECRET", secrets.token_hex(32))
-JWT_ALGO     = "HS256"
-TOKEN_TTL    = 3600 * 8          # 8 heures
-BCRYPT_ROUNDS = 12               # coût bcrypt élevé
-MAX_ATTEMPTS  = 5                # anti brute-force
-LOCKOUT_SEC   = 300              # 5 min de blocage
+try:
+    import streamlit as st
+    SECRET_KEY    = st.secrets["security"]["JWT_SECRET"]
+    SUPABASE_URL  = st.secrets["supabase"]["url"]
+    SUPABASE_KEY  = st.secrets["supabase"]["anon_key"]
+except Exception:
+    SECRET_KEY    = os.environ.get("JWT_SECRET", secrets.token_hex(32))
+    SUPABASE_URL  = os.environ.get("SUPABASE_URL", "")
+    SUPABASE_KEY  = os.environ.get("SUPABASE_ANON_KEY", "")
+
+JWT_ALGO      = "HS256"
+TOKEN_TTL     = 3600 * 8
+BCRYPT_ROUNDS = 12
+MAX_ATTEMPTS  = 5
+LOCKOUT_SEC   = 300
+
+HEADERS = {
+    "apikey": SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type": "application/json",
+}
 
 
 # ─────────────────────────────────────────────
-# STOCKAGE UTILISATEURS (JSON chiffré en base64)
+# SUPABASE HELPERS
 # ─────────────────────────────────────────────
 
-def _load_users() -> dict:
-    if not USERS_FILE.exists():
-        return {}
-    with open(USERS_FILE, "r") as f:
-        return json.load(f)
+def _get_user(email: str) -> dict | None:
+    url = f"{SUPABASE_URL}/rest/v1/cinematch_users?email=eq.{email}&limit=1"
+    r = requests.get(url, headers=HEADERS, timeout=10)
+    if r.status_code == 200 and r.json():
+        return r.json()[0]
+    return None
 
-def _save_users(data: dict):
-    with open(USERS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+def _create_user(data: dict) -> bool:
+    url = f"{SUPABASE_URL}/rest/v1/cinematch_users"
+    r = requests.post(url, headers={**HEADERS, "Prefer": "return=minimal"},
+                      json=data, timeout=10)
+    return r.status_code in (200, 201)
+
+def _update_user(email: str, data: dict) -> bool:
+    url = f"{SUPABASE_URL}/rest/v1/cinematch_users?email=eq.{email}"
+    r = requests.patch(url, headers={**HEADERS, "Prefer": "return=minimal"},
+                       json=data, timeout=10)
+    return r.status_code in (200, 204)
 
 
 # ─────────────────────────────────────────────
@@ -64,30 +87,21 @@ def _validate_password(pwd: str) -> tuple[bool, str]:
 # ANTI BRUTE-FORCE
 # ─────────────────────────────────────────────
 
-def _check_lockout(users: dict, email: str) -> tuple[bool, int]:
-    """Retourne (is_locked, seconds_remaining)"""
-    user = users.get(email, {})
-    attempts = user.get("failed_attempts", 0)
-    last_fail = user.get("last_failed_at", 0)
+def _check_lockout(user: dict) -> tuple[bool, int]:
+    attempts  = user.get("failed_attempts", 0)
+    last_fail = user.get("last_failed_at", 0) or 0
     if attempts >= MAX_ATTEMPTS:
-        elapsed = time.time() - last_fail
+        elapsed = time.time() - float(last_fail)
         if elapsed < LOCKOUT_SEC:
             return True, int(LOCKOUT_SEC - elapsed)
-        # Reset après expiration
-        users[email]["failed_attempts"] = 0
     return False, 0
 
-def _record_failed(users: dict, email: str):
-    if email in users:
-        users[email]["failed_attempts"] = users[email].get("failed_attempts", 0) + 1
-        users[email]["last_failed_at"] = time.time()
-        _save_users(users)
+def _record_failed(email: str, user: dict):
+    attempts = user.get("failed_attempts", 0) + 1
+    _update_user(email, {"failed_attempts": attempts, "last_failed_at": time.time()})
 
-def _reset_attempts(users: dict, email: str):
-    if email in users:
-        users[email]["failed_attempts"] = 0
-        users[email]["last_failed_at"] = 0
-        _save_users(users)
+def _reset_attempts(email: str):
+    _update_user(email, {"failed_attempts": 0, "last_failed_at": 0})
 
 
 # ─────────────────────────────────────────────
@@ -96,22 +110,19 @@ def _reset_attempts(users: dict, email: str):
 
 def _generate_token(email: str, name: str) -> str:
     payload = {
-        "sub":   hashlib.sha256(email.encode()).hexdigest(),  # on ne met pas l'email brut
+        "sub":   hashlib.sha256(email.encode()).hexdigest(),
         "name":  name,
+        "email": email,
         "iat":   int(time.time()),
         "exp":   int(time.time()) + TOKEN_TTL,
-        "jti":   secrets.token_hex(16),   # ID unique du token (anti-replay)
+        "jti":   secrets.token_hex(16),
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGO)
 
 def verify_token(token: str) -> dict | None:
-    """Vérifie le JWT et retourne le payload ou None si invalide/expiré."""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGO])
-        return payload
-    except jwt.ExpiredSignatureError:
-        return None
-    except jwt.InvalidTokenError:
+        return jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGO])
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return None
 
 
@@ -131,14 +142,13 @@ def register_user(name: str, email: str, password: str) -> tuple[bool, str]:
     if not ok:
         return False, msg
 
-    users = _load_users()
-    if email in users:
+    if _get_user(email):
         return False, "Un compte existe déjà avec cet email."
 
     hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=BCRYPT_ROUNDS))
-
-    users[email] = {
+    data = {
         "name":            name,
+        "email":           email,
         "password_hash":   hashed.decode("utf-8"),
         "created_at":      datetime.now(timezone.utc).isoformat(),
         "failed_attempts": 0,
@@ -146,8 +156,9 @@ def register_user(name: str, email: str, password: str) -> tuple[bool, str]:
         "ratings":         {},
         "genre_prefs":     [],
     }
-    _save_users(users)
-    return True, "Compte créé avec succès."
+    if _create_user(data):
+        return True, "Compte créé avec succès."
+    return False, "Erreur lors de la création du compte. Réessayez."
 
 
 # ─────────────────────────────────────────────
@@ -155,59 +166,59 @@ def register_user(name: str, email: str, password: str) -> tuple[bool, str]:
 # ─────────────────────────────────────────────
 
 def login_user(email: str, password: str) -> tuple[bool, str, str | None]:
-    """
-    Retourne (success, message, jwt_token_or_None)
-    """
     email = email.strip().lower()
-    users = _load_users()
+    user  = _get_user(email)
 
-    if email not in users:
+    if not user:
         return False, "Email ou mot de passe incorrect.", None
 
-    locked, remaining = _check_lockout(users, email)
+    locked, remaining = _check_lockout(user)
     if locked:
         mins = remaining // 60
         secs = remaining % 60
         return False, f"Compte temporairement bloqué. Réessayez dans {mins}m{secs:02d}s.", None
 
-    stored_hash = users[email]["password_hash"].encode("utf-8")
+    stored_hash = user["password_hash"].encode("utf-8")
     if not bcrypt.checkpw(password.encode("utf-8"), stored_hash):
-        _record_failed(users, email)
-        attempts_left = MAX_ATTEMPTS - users[email]["failed_attempts"]
+        _record_failed(email, user)
+        attempts_left = MAX_ATTEMPTS - (user.get("failed_attempts", 0) + 1)
         if attempts_left <= 0:
             return False, f"Trop de tentatives. Compte bloqué {LOCKOUT_SEC//60} min.", None
         return False, f"Mot de passe incorrect. {attempts_left} tentative(s) restante(s).", None
 
-    _reset_attempts(users, email)
-    token = _generate_token(email, users[email]["name"])
-    users[email]["last_login"] = datetime.now(timezone.utc).isoformat()
-    _save_users(users)
-
+    _reset_attempts(email)
+    _update_user(email, {"last_login": datetime.now(timezone.utc).isoformat()})
+    token = _generate_token(email, user["name"])
     return True, "Connexion réussie.", token
 
 
 # ─────────────────────────────────────────────
-# DONNÉES UTILISATEUR (ratings + préférences)
+# DONNÉES UTILISATEUR
 # ─────────────────────────────────────────────
 
 def get_user_data(email: str) -> dict:
-    users = _load_users()
-    u = users.get(email.lower(), {})
+    user = _get_user(email.lower()) or {}
+    ratings = user.get("ratings", {})
+    if isinstance(ratings, str):
+        try:
+            ratings = json.loads(ratings)
+        except Exception:
+            ratings = {}
+    genre_prefs = user.get("genre_prefs", [])
+    if isinstance(genre_prefs, str):
+        try:
+            genre_prefs = json.loads(genre_prefs)
+        except Exception:
+            genre_prefs = []
     return {
-        "name":        u.get("name", ""),
-        "ratings":     u.get("ratings", {}),
-        "genre_prefs": u.get("genre_prefs", []),
-        "created_at":  u.get("created_at", ""),
+        "name":        user.get("name", ""),
+        "ratings":     ratings,
+        "genre_prefs": genre_prefs,
+        "created_at":  user.get("created_at", ""),
     }
 
 def save_user_ratings(email: str, ratings: dict):
-    users = _load_users()
-    if email.lower() in users:
-        users[email.lower()]["ratings"] = ratings
-        _save_users(users)
+    _update_user(email.lower(), {"ratings": ratings})
 
 def save_user_genres(email: str, genres: list):
-    users = _load_users()
-    if email.lower() in users:
-        users[email.lower()]["genre_prefs"] = genres
-        _save_users(users)
+    _update_user(email.lower(), {"genre_prefs": genres})
