@@ -17,6 +17,16 @@ from recommender import (
     evaluate_rmse, get_all_genres, get_movies_by_genre,
     recommend_user_based, recommend_item_based, recommend_content_based,
 )
+
+# ─────────────────────────────────────────────
+# CONFIG PAGE
+# ─────────────────────────────────────────────
+st.set_page_config(
+    page_title="CineMatch — Recommandation de Films",
+    page_icon="🎬",
+    layout="wide",
+    initial_sidebar_state="auto",
+)
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap');
@@ -87,16 +97,6 @@ st.markdown("""
   footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
-# ─────────────────────────────────────────────
-# CONFIG PAGE
-# ─────────────────────────────────────────────
-st.set_page_config(
-    page_title="CineMatch — Recommandation de Films",
-    page_icon="🎬",
-    layout="wide",
-    initial_sidebar_state="auto",
-)
-
 # ─────────────────────────────────────────────
 # SESSION STATE INIT
 # ─────────────────────────────────────────────
