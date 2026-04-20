@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 try:
     import streamlit as st
     SECRET_KEY    = st.secrets["security"]["JWT_SECRET"]
-    SUPABASE_URL  = st.secrets["supabase"]["url"]
+    SUPABASE_URL  = st.secrets["supabase"]["supabase_url"]
     SUPABASE_KEY  = st.secrets["supabase"]["anon_key"]
 except Exception:
     SECRET_KEY    = os.environ.get("JWT_SECRET", secrets.token_hex(32))
