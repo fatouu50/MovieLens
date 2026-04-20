@@ -34,9 +34,7 @@ st.set_page_config(
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap');
-
   html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
-
   /* HEADER */
   .main-title {
     font-family: 'Playfair Display', serif;
@@ -46,7 +44,6 @@ st.markdown("""
     margin-bottom: 0;
   }
   .sub-title { color: #7070a0; font-size: 0.9rem; letter-spacing: 2px; text-transform: uppercase; }
-
   /* CARDS */
   .rec-card {
     background: #13131a; border: 1px solid #2a2a3a;
@@ -70,7 +67,6 @@ st.markdown("""
   .multi-badge {
     background: rgba(124,92,252,0.15); border-color: rgba(124,92,252,0.4); color: #a78bfa;
   }
-
   /* METRIC CARDS */
   .metric-box {
     background: #13131a; border: 1px solid #2a2a3a;
@@ -78,7 +74,6 @@ st.markdown("""
   }
   .metric-val { font-size: 1.8rem; font-weight: 700; color: #f5c842; }
   .metric-lbl { font-size: 0.78rem; color: #7070a0; margin-top: 2px; }
-
   /* LIVE BADGE */
   .live-dot {
     display: inline-block; width: 8px; height: 8px;
@@ -89,11 +84,9 @@ st.markdown("""
     0%,100% { opacity: 1; transform: scale(1); }
     50%      { opacity: .5; transform: scale(1.4); }
   }
-
   /* SCORE BAR */
   .score-bar-wrap { background: #2a2a3a; border-radius: 3px; height: 4px; margin-top: 8px; }
   .score-bar-fill { height: 4px; border-radius: 3px; background: linear-gradient(90deg,#f5c842,#e8a820); }
-
   /* SECTION DIVIDER */
   .section-header {
     font-family: 'Playfair Display', serif;
@@ -101,18 +94,27 @@ st.markdown("""
     border-bottom: 1px solid #2a2a3a;
     padding-bottom: 8px; margin: 24px 0 16px;
   }
-
   /* STAR RATING */
   .star-row { font-size: 1.3rem; cursor: pointer; }
-
+  /* SIDEBAR MOBILE FIX */
+  [data-testid="collapsedControl"] {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 999999 !important;
+    position: fixed !important;
+    top: 0.5rem !important;
+    left: 0.5rem !important;
+  }
+  section[data-testid="stSidebar"] {
+    display: block !important;
+  }
   /* HIDE STREAMLIT BRANDING */
   #MainMenu {visibility: hidden;}
   footer {visibility: hidden;}
   header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
-
-
 # ─────────────────────────────────────────────
 # SESSION STATE INIT
 # ─────────────────────────────────────────────
