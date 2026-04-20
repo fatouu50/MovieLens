@@ -55,8 +55,10 @@ def _create_user(data: dict) -> bool:
     url = f"{SUPABASE_URL}/rest/v1/cinematch_users"
     r = requests.post(url, headers={**HEADERS, "Prefer": "return=minimal"},
                       json=data, timeout=10)
+    if r.status_code not in (200, 201):
+        import streamlit as st
+        st.error(f"Supabase error {r.status_code}: {r.text}")
     return r.status_code in (200, 201)
-
 def _update_user(email: str, data: dict) -> bool:
     url = f"{SUPABASE_URL}/rest/v1/cinematch_users?email=eq.{email}"
     r = requests.patch(url, headers={**HEADERS, "Prefer": "return=minimal"},
