@@ -17,7 +17,76 @@ from recommender import (
     evaluate_rmse, get_all_genres, get_movies_by_genre,
     recommend_user_based, recommend_item_based, recommend_content_based,
 )
-
+st.markdown("""
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap');
+  html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
+  /* HEADER */
+  .main-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.6rem; font-weight: 900;
+    background: linear-gradient(135deg, #f5c842, #e8a820);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 0;
+  }
+  .sub-title { color: #7070a0; font-size: 0.9rem; letter-spacing: 2px; text-transform: uppercase; }
+  /* CARDS */
+  .rec-card {
+    background: #13131a; border: 1px solid #2a2a3a;
+    border-radius: 14px; padding: 18px 20px;
+    margin-bottom: 12px; transition: border-color .2s;
+  }
+  .rec-card:hover { border-color: #f5c842; }
+  .rec-rank { color: #f5c842; font-size: 0.72rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+  .rec-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 700; margin: 4px 0 8px; }
+  .genre-tag {
+    display: inline-block; padding: 2px 10px;
+    background: #1c1c26; border: 1px solid #2a2a3a;
+    border-radius: 100px; font-size: 0.72rem; color: #7070a0;
+    margin: 2px;
+  }
+  .method-badge {
+    display: inline-block; padding: 3px 10px;
+    background: rgba(245,200,66,0.12); border: 1px solid rgba(245,200,66,0.3);
+    border-radius: 100px; font-size: 0.72rem; color: #f5c842;
+  }
+  .multi-badge {
+    background: rgba(124,92,252,0.15); border-color: rgba(124,92,252,0.4); color: #a78bfa;
+  }
+  /* METRIC CARDS */
+  .metric-box {
+    background: #13131a; border: 1px solid #2a2a3a;
+    border-radius: 12px; padding: 16px 20px; text-align: center;
+  }
+  .metric-val { font-size: 1.8rem; font-weight: 700; color: #f5c842; }
+  .metric-lbl { font-size: 0.78rem; color: #7070a0; margin-top: 2px; }
+  /* LIVE BADGE */
+  .live-dot {
+    display: inline-block; width: 8px; height: 8px;
+    background: #5cfca0; border-radius: 50%;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .5; transform: scale(1.4); }
+  }
+  /* SCORE BAR */
+  .score-bar-wrap { background: #2a2a3a; border-radius: 3px; height: 4px; margin-top: 8px; }
+  .score-bar-fill { height: 4px; border-radius: 3px; background: linear-gradient(90deg,#f5c842,#e8a820); }
+  /* SECTION DIVIDER */
+  .section-header {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem; font-weight: 700;
+    border-bottom: 1px solid #2a2a3a;
+    padding-bottom: 8px; margin: 24px 0 16px;
+  }
+  /* STAR RATING */
+  .star-row { font-size: 1.3rem; cursor: pointer; }
+  /* HIDE STREAMLIT BRANDING ONLY */
+  #MainMenu {visibility: hidden;}
+  footer {visibility: hidden;}
+</style>
+""", unsafe_allow_html=True)
 # ─────────────────────────────────────────────
 # CONFIG PAGE
 # ─────────────────────────────────────────────
