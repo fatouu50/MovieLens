@@ -16,6 +16,8 @@ Application Streamlit complète utilisant le dataset **MovieLens 100K**.
 | 📊 Évaluation | RMSE sur jeu de test 80/20 |
 | ⭐ Notation | Interface de notation intuitive |
 
+---
+
 ## Structure du projet
 
 ```
@@ -96,6 +98,8 @@ print(secrets.token_hex(32))
 - **Validation** : email, mot de passe (8 car., maj., chiffre, spécial)
 - **users_db.json** : exclu du dépôt git (`.gitignore`)
 - **XSRF Protection** : activé dans `config.toml`
+
+---
 
 ## Technologies
 
