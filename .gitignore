@@ -1,6 +1,13 @@
-﻿__pycache__/
+# Données sensibles — NE JAMAIS commiter
+users_db.json
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
 *.pyc
-.venv/
+*.pyo
 .env
-*.log
+
+# OS
 .DS_Store
+Thumbs.db
