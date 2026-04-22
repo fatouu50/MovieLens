@@ -17,15 +17,52 @@ from datetime import datetime, timezone
 # ─────────────────────────────────────────────
 # CONFIG SÉCURITÉ
 # ─────────────────────────────────────────────
-try:
-    import streamlit as st
-    SECRET_KEY    = st.secrets["security"]["JWT_SECRET"]
-    SUPABASE_URL  = st.secrets["supabase"]["supabase_url"]
-    SUPABASE_KEY  = st.secrets["supabase"]["anon_key"]
-except Exception:
-    SECRET_KEY    = os.environ.get("JWT_SECRET", secrets.token_hex(32))
-    SUPABASE_URL  = os.environ.get("SUPABASE_URL", "")
-    SUPABASE_KEY  = os.environ.get("SUPABASE_ANON_KEY", "")
+def _load_secrets():
+    """Charge les secrets depuis Streamlit ou les variables d'environnement."""
+    jwt_secret   = None
+    supabase_url = None
+    supabase_key = None
+
+    # Tentative via st.secrets
+    try:
+        import streamlit as st
+        jwt_secret   = st.secrets.get("security", {}).get("JWT_SECRET")
+        supabase_url = st.secrets.get("supabase", {}).get("supabase_url")
+        supabase_key = st.secrets.get("supabase", {}).get("anon_key")
+    except Exception:
+        pass
+
+    # Fallback variables d'environnement
+    if not jwt_secret:
+        jwt_secret = os.environ.get("JWT_SECRET", secrets.token_hex(32))
+    if not supabase_url:
+        supabase_url = os.environ.get("SUPABASE_URL", "")
+    if not supabase_key:
+        supabase_key = os.environ.get("SUPABASE_ANON_KEY", "")
+
+    # Validation : URL Supabase doit commencer par https://
+    if supabase_url and not supabase_url.startswith("https://"):
+        supabase_url = "https://" + supabase_url
+
+    return jwt_secret, supabase_url, supabase_key
+
+SECRET_KEY, SUPABASE_URL, SUPABASE_KEY = _load_secrets()
+
+# Vérification critique au démarrage
+if not SUPABASE_URL:
+    try:
+        import streamlit as st
+        st.error(
+            "⚠️ **Configuration Supabase manquante.**\n\n"
+            "Ajoutez dans `.streamlit/secrets.toml` :\n"
+            "```toml\n[supabase]\nsupabase_url = \"https://xxxx.supabase.co\"\nanon_key = \"eyJ...\"\n\n[security]\nJWT_SECRET = \"votre_secret\"\n```"
+        )
+        st.stop()
+    except Exception:
+        raise RuntimeError(
+            "SUPABASE_URL est vide. Définissez la variable d'environnement "
+            "SUPABASE_URL ou configurez .streamlit/secrets.toml."
+        )
 
 JWT_ALGO      = "HS256"
 TOKEN_TTL     = 3600 * 8

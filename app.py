@@ -5,6 +5,7 @@ authentification JWT/bcrypt, notation, live reco, fusion sans redondance, RMSE
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import requests
@@ -126,18 +127,13 @@ def tmdb_similar(tmdb_id: int) -> list:
 # FONTS
 # ─────────────────────────────────────────────────────────────
 
-st.html("""
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
-""")
-
 # ─────────────────────────────────────────────────────────────
 # CSS GLOBAL
 # ─────────────────────────────────────────────────────────────
 
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600&display=swap');
 
 /* ── RESET & BASE ─────────────────────────────────── */
 html, body,
@@ -745,6 +741,14 @@ section.main {
     color: #e8e8f0 !important;
     background: rgba(229,9,20,0.06) !important;
 }
+.stButton > button[kind="primary"] {
+    color: #e50914 !important;
+    border-color: rgba(229,9,20,0.4) !important;
+    background: rgba(229,9,20,0.08) !important;
+}
+.stButton > button[kind="primary"]:hover {
+    background: rgba(229,9,20,0.15) !important;
+}
 .back-btn > button {
     color: #e50914 !important;
     border-color: rgba(229,9,20,0.3) !important;
@@ -787,6 +791,123 @@ hr { border-color: #111128 !important; }
 .score-bar-wrap { background: #1e1e38; border-radius: 3px; height: 3px; margin-top: 6px; }
 .score-bar-fill { height: 3px; border-radius: 3px; background: linear-gradient(90deg,#e50914,#ff4444); }
 
+
+/* Fix raw HTML text leak in Streamlit markdown */
+[data-testid="stMarkdownContainer"] > div > p:not(:has(*)) { display: none !important; }
+
+/* ── UNIFIED NAVBAR ───────────────────────────────── */
+.unb {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: #080810;
+    padding: 0 2.5rem;
+    height: 62px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    gap: 1.5rem;
+    margin-bottom: 0;
+}
+.unb-logo-wrap { display: flex; flex-direction: column; flex-shrink: 0; }
+.unb-logo {
+    font-family: 'Oswald', sans-serif !important;
+    font-size: 1.5rem !important;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: #e50914 !important;
+    text-transform: uppercase;
+    line-height: 1;
+}
+.unb-tag {
+    font-size: 0.58rem;
+    color: #252545;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    margin-top: 3px;
+}
+.unb-nav {
+    display: flex;
+    gap: 0.15rem;
+    align-items: center;
+    flex: 1;
+    padding-left: 1.5rem;
+}
+.unb-pill {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #44446a;
+    background: transparent;
+    border: none;
+    border-radius: 20px;
+    padding: 6px 14px;
+    text-decoration: none !important;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    -webkit-tap-highlight-color: transparent;
+}
+.unb-pill:visited { color: #44446a; }
+.unb-pill:hover { color: #c8c8e0; background: rgba(255,255,255,0.05); }
+.unb-pill.active {
+    background: rgba(229,9,20,0.15);
+    border: 1px solid rgba(229,9,20,0.35);
+    color: #e50914 !important;
+    font-weight: 600;
+}
+.unb-pill.active:visited { color: #e50914; }
+.unb-right {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-shrink: 0;
+}
+.unb-user {
+    font-size: 0.7rem;
+    color: #33334a;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+.unb-logout {
+    background: transparent;
+    border: 1px solid #1e1e38;
+    color: #44446a;
+    font-size: 0.68rem;
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none !important;
+    display: inline-flex;
+    align-items: center;
+}
+.unb-logout:visited { color: #44446a; }
+.unb-logout:hover { color: #e50914; border-color: rgba(229,9,20,0.4); background: rgba(229,9,20,0.06); }
+.unb-stat { text-align: right; }
+.unb-sv {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1rem;
+    color: #e8e8f0;
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+.unb-sl {
+    font-size: 0.58rem;
+    color: #2a2a40;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-top: 1px;
+}
+
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -795,6 +916,22 @@ hr { border-color: #111128 !important; }
 # SESSION STATE
 # ─────────────────────────────────────────────────────────────
 
+# Auth session state defaults — initialisés EN PREMIER
+_auth_defaults = {
+    "jwt_token":      None,
+    "user_email":     None,
+    "user_name":      None,
+    "user_ratings":   {},
+    "genre_prefs":    [],
+    "show_rmse":      False,
+    "rec_method":     "content",
+    "active_page":    "catalogue",
+}
+for _k, _v in _auth_defaults.items():
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
+
+# Lecture des query params — APRÈS les defaults pour écraser correctement
 _qp = st.query_params
 
 if 'film' in _qp:
@@ -816,20 +953,15 @@ else:
     if 'search_query' not in st.session_state:
         st.session_state.search_query = ""
 
-# Auth session state
-_auth_defaults = {
-    "jwt_token":      None,
-    "user_email":     None,
-    "user_name":      None,
-    "user_ratings":   {},
-    "genre_prefs":    [],
-    "show_rmse":      False,
-    "rec_method":     "content",
-    "active_page":    "catalogue",
-}
-for _k, _v in _auth_defaults.items():
-    if _k not in st.session_state:
-        st.session_state[_k] = _v
+if 'page' in _qp:
+    valid_pages = {"catalogue", "noter", "reco", "fusion", "evaluation", "live"}
+    if _qp['page'] in valid_pages:
+        st.session_state.active_page = _qp['page']
+    else:
+        st.session_state.active_page = "catalogue"
+elif 'film' not in _qp and 'genre' not in _qp and 'q' not in _qp and '__logout' not in _qp:
+    # URL propre sans paramètre = retour à l'accueil
+    st.session_state.active_page = "catalogue"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -963,67 +1095,106 @@ def render_poster_row(df, cols_count=10):
             st.markdown(html, unsafe_allow_html=True)
 
 
-def render_rec_row(rank: int, row):
-    """Carte de recommandation avec barre de score."""
+def render_rec_row(rank: int, row, item_id: int = None):
+    """Carte de recommandation cliquable — sans bouton séparé."""
     genres_html = ""
     if hasattr(row, "genres_list") and isinstance(row.genres_list, list):
         genres_html = " · ".join(row.genres_list[:3])
     score_val = float(row.score)
     score_pct = min(int(score_val * 100 / 5 * 100), 100) if score_val <= 5 else min(int(score_val * 20), 100)
     appearances = getattr(row, "appearances", 1)
-    consensus = f" — Consensus {appearances} methodes" if appearances > 1 else ""
-    method_txt = f" [{row.method}]" if hasattr(row, "method") else ""
+    consensus = (
+        f'<span style="color:#5cfca0;margin-left:6px;font-size:0.6rem;">● {appearances} METHODES</span>'
+        if appearances > 1 else ""
+    )
+    method_map = {"content": "CONTENT", "user": "USER-BASED", "item": "ITEM-BASED"}
+    method_txt = method_map.get(getattr(row, "method", ""), getattr(row, "method", "").upper())
+    badge_color = {"CONTENT": "#7c5cbf", "USER-BASED": "#2e86ab", "ITEM-BASED": "#e07b39"}.get(method_txt, "#555")
+
+    href = f"?film={item_id}" if item_id else "#"
     st.markdown(f"""
-    <div style="background:#0d0d1a;border:1px solid #1e1e38;border-radius:8px;padding:14px 18px;margin-bottom:8px;">
-        <div style="font-size:0.65rem;color:#e50914;letter-spacing:2px;text-transform:uppercase;">
-            #{rank}{method_txt}{consensus}
+    <a href="{href}" target="_self" style="text-decoration:none;display:block;">
+    <div style="
+        background:#0d0d1a;
+        border:1px solid #1a1a30;
+        border-radius:10px;
+        padding:16px 20px;
+        margin-bottom:8px;
+        cursor:pointer;
+        transition:border-color 0.15s,background 0.15s;
+        position:relative;
+        overflow:hidden;
+    " onmouseover="this.style.borderColor='#e50914';this.style.background='#110011'"
+       onmouseout="this.style.borderColor='#1a1a30';this.style.background='#0d0d1a'">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <span style="font-size:0.6rem;font-weight:600;letter-spacing:2px;color:#fff;background:{badge_color};padding:2px 8px;border-radius:3px;">{method_txt}</span>
+            <span style="font-size:0.65rem;color:#333355;letter-spacing:1px;">#{rank}</span>
+            {consensus}
+            <span style="margin-left:auto;font-size:0.65rem;color:#22223a;">→</span>
         </div>
-        <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:#f0f0ff;margin:4px 0 4px;">
-            {row.title}
+        <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;color:#f0f0ff;font-weight:500;margin-bottom:3px;">{row.title}</div>
+        <div style="font-size:0.72rem;color:#44445a;margin-bottom:10px;">{genres_html}</div>
+        <div style="background:#111128;border-radius:3px;height:3px;overflow:hidden;">
+            <div style="height:3px;border-radius:3px;background:linear-gradient(90deg,#e50914,#ff4444);width:{score_pct}%;"></div>
         </div>
-        <div style="font-size:0.72rem;color:#44445a;">{genres_html}</div>
-        <div class="score-bar-wrap"><div class="score-bar-fill" style="width:{score_pct}%"></div></div>
-        <div style="font-size:0.68rem;color:#333355;margin-top:3px;">Score : {score_val:.4f}</div>
+        <div style="font-size:0.62rem;color:#222240;margin-top:4px;">Score {score_val:.4f}</div>
     </div>
+    </a>
     """, unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────
-# NAVBAR
+# NAVBAR UNIFIÉE
 # ─────────────────────────────────────────────────────────────
 
-user_label = ""
-nav_extra = ""
-if is_logged_in():
-    name = st.session_state.user_name or st.session_state.user_email
-    user_label = f'<span style="font-size:0.72rem;color:#6666aa;letter-spacing:1px;text-transform:uppercase;">{name}</span>'
+def render_navbar():
+    """Navbar pure st.markdown — pas d'iframe, liens natifs Streamlit."""
+    logged = is_logged_in()
+    active = st.session_state.get("active_page", "catalogue")
+    user_name = (st.session_state.user_name or st.session_state.user_email or "") if logged else ""
 
-st.markdown(f"""
-<div class="navbar">
-    <div style="display:flex; align-items:center; gap:2rem;">
-        <div>
-            <div class="navbar-logo">MovieLens</div>
-            <div class="navbar-tagline">Intelligent Recommendation Platform</div>
-        </div>
-        <a class="navbar-home-btn" href="?" target="_self">Accueil</a>
-    </div>
-    <div class="navbar-stats">
-        {user_label}
-        <div class="navbar-stat">
-            <div class="navbar-stat-val">{total_films:,}</div>
-            <div class="navbar-stat-lbl">Films</div>
-        </div>
-        <div class="navbar-stat">
-            <div class="navbar-stat-val">{total_ratings:,}</div>
-            <div class="navbar-stat-lbl">Evaluations</div>
-        </div>
-        <div class="navbar-stat">
-            <div class="navbar-stat-val">* {avg_note}</div>
-            <div class="navbar-stat-lbl">Note moy.</div>
-        </div>
-    </div>
+    pages = {
+        "catalogue":  "Accueil",
+        "noter":      "Noter",
+        "reco":       "Recommandations",
+        "fusion":     "Fusion",
+        "evaluation": "Evaluation",
+        "live":       "Live",
+    }
+
+    if logged:
+        nav_links_html = ""
+        for key, label in pages.items():
+            css_class = "unb-pill active" if key == active else "unb-pill"
+            nav_links_html += f'<a class="{css_class}" href="?page={key}" target="_self">{label}</a>'
+        right_html = (
+            f'<span class="unb-user">{user_name}</span>'
+            f'<a class="unb-logout" href="?__logout=1" target="_self">Deconnexion</a>'
+        )
+    else:
+        nav_links_html = '<a class="unb-pill active" href="?" target="_self">Accueil</a>'
+        right_html = (
+            f'<div class="unb-stat"><div class="unb-sv">{total_films:,}</div><div class="unb-sl">Films</div></div>'
+            f'<div class="unb-stat"><div class="unb-sv">{total_ratings:,}</div><div class="unb-sl">Evaluations</div></div>'
+            f'<div class="unb-stat"><div class="unb-sv">&#9733; {avg_note}</div><div class="unb-sl">Note moy.</div></div>'
+        )
+
+    st.markdown(f"""
+<div class="unb">
+  <div class="unb-logo-wrap">
+    <div class="unb-logo">MovieLens</div>
+    <div class="unb-tag">Intelligent Recommendation Platform</div>
+  </div>
+  <nav class="unb-nav">{nav_links_html}</nav>
+  <div class="unb-right">{right_html}</div>
 </div>
 """, unsafe_allow_html=True)
+
+    if '__logout' in st.query_params:
+        st.query_params.clear()
+        do_logout()
+
+render_navbar()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1139,21 +1310,15 @@ def page_recommandations():
     """, unsafe_allow_html=True)
 
     for i, row in enumerate(results.itertuples(), 1):
-        col_p, col_c, col_btn = st.columns([1, 5, 1])
+        col_p, col_c = st.columns([1, 6])
         with col_p:
             poster = fetch_poster(row.title)
             if poster:
                 st.image(poster, width=70)
         with col_c:
-            render_rec_row(i, row)
-        with col_btn:
-            # Trouver l'item_id dans le catalogue pour naviguer vers le detail
             match = items_with_stats[items_with_stats['title'] == row.title]
-            if not match.empty:
-                iid = int(match.iloc[0]['item_id'])
-                if st.button("Voir", key=f"rec_voir_{i}_{iid}"):
-                    st.query_params['film'] = str(iid)
-                    st.rerun()
+            iid = int(match.iloc[0]['item_id']) if not match.empty else None
+            render_rec_row(i, row, item_id=iid)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1202,20 +1367,15 @@ def page_sans_redondance():
     """, unsafe_allow_html=True)
 
     for i, row in enumerate(results.itertuples(), 1):
-        col_p, col_c, col_btn = st.columns([1, 5, 1])
+        col_p, col_c = st.columns([1, 6])
         with col_p:
             poster = fetch_poster(row.title)
             if poster:
                 st.image(poster, width=70)
         with col_c:
-            render_rec_row(i, row)
-        with col_btn:
             match = items_with_stats[items_with_stats['title'] == row.title]
-            if not match.empty:
-                iid = int(match.iloc[0]['item_id'])
-                if st.button("Voir", key=f"fus_voir_{i}_{iid}"):
-                    st.query_params['film'] = str(iid)
-                    st.rerun()
+            iid = int(match.iloc[0]['item_id']) if not match.empty else None
+            render_rec_row(i, row, item_id=iid)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1275,6 +1435,54 @@ def page_evaluation():
 # PAGE NOTATION
 # ─────────────────────────────────────────────────────────────
 
+def _star_widget(mid: int, current: int) -> int | None:
+    """Retourne la nouvelle note (1-5) si changée, sinon None."""
+    stars_html = ""
+    for s in range(1, 6):
+        filled = "filled" if s <= current else ""
+        stars_html += f'<span class="star {filled}" data-v="{s}">&#9733;</span>'
+    clear_btn = f'<span class="clear-btn" onclick="clearRating()">&#10005;</span>' if current > 0 else ""
+    widget = f"""<!DOCTYPE html><html><head><style>
+*{{margin:0;padding:0;box-sizing:border-box;}}
+body{{background:transparent;overflow:hidden;display:flex;align-items:center;gap:4px;padding:2px 0;}}
+.star{{font-size:1.4rem;cursor:pointer;color:#1e1e38;transition:color 0.1s,transform 0.1s;line-height:1;}}
+.star.filled{{color:#e50914;}}
+.star:hover,.star:hover~.star{{color:#ff4444 !important;}}
+.stars:hover .star{{color:#ff4444;}}
+.stars:hover .star:hover~.star{{color:#1e1e38;}}
+.clear-btn{{font-size:0.65rem;color:#333355;cursor:pointer;padding:0 4px;transition:color 0.1s;margin-left:2px;}}
+.clear-btn:hover{{color:#e50914;}}
+</style></head><body>
+<div class="stars" id="stars">{stars_html}</div>{clear_btn}
+<script>
+const stars=document.querySelectorAll(".star");
+stars.forEach(s=>{{
+  s.addEventListener("mouseover",()=>{{
+    const v=+s.dataset.v;
+    stars.forEach(x=>x.classList.toggle("filled",+x.dataset.v<=v));
+  }});
+  s.addEventListener("mouseout",()=>{{
+    stars.forEach(x=>x.classList.toggle("filled",x.classList.contains("orig")));
+  }});
+  s.addEventListener("click",()=>{{
+    const v=+s.dataset.v;
+    stars.forEach(x=>x.classList.remove("orig"));
+    stars.forEach(x=>{{if(+x.dataset.v<=v)x.classList.add("orig","filled");else x.classList.remove("filled");}});
+    window.parent.postMessage({{type:"streamlit:setComponentValue",value:v}},"*");
+  }});
+}});
+document.querySelectorAll(".star.filled").forEach(x=>x.classList.add("orig"));
+function clearRating(){{
+  stars.forEach(x=>{{x.classList.remove("filled","orig");}});
+  window.parent.postMessage({{type:"streamlit:setComponentValue",value:0}},"*");
+}}
+</script></body></html>"""
+    val = components.html(widget, height=34, scrolling=False)
+    if val is not None and isinstance(val, (int, float)) and int(val) != current:
+        return int(val)
+    return None
+
+
 def page_noter():
     st.markdown('<div class="content-wrap">', unsafe_allow_html=True)
     st.markdown("""
@@ -1300,32 +1508,35 @@ def page_noter():
     for i, (_, row) in enumerate(pool.iterrows()):
         mid = int(row['item_id'])
         current = int(st.session_state.user_ratings.get(str(mid), 0))
+        genres_short = ", ".join(row['genres'][:2]) if isinstance(row.get('genres'), list) else ""
+        year_s = str(int(row['year'])) if pd.notna(row.get('year')) and row.get('year') else ""
         with cols[i % 3]:
-            with st.container(border=True):
-                poster = fetch_poster(row['title'], row.get('year'))
-                if poster:
-                    st.image(poster, use_container_width=True)
-                genres_short = ", ".join(row['genres'][:2]) if isinstance(row.get('genres'), list) else ""
-                st.markdown(f"**{row['title'][:28]}**")
-                st.caption(genres_short)
-                col_rate, col_detail = st.columns([3, 1])
-                with col_rate:
-                    new_rating = st.select_slider(
-                        "Note", options=["—","1","2","3","4","5"],
-                        value=str(current) if current > 0 else "—",
-                        key=f"noter_{mid}", label_visibility="collapsed",
-                    )
-                    if new_rating != "—":
-                        r_val = int(new_rating)
-                        if st.session_state.user_ratings.get(str(mid)) != r_val:
-                            st.session_state.user_ratings[str(mid)] = r_val
-                            save_user_ratings(st.session_state.user_email, st.session_state.user_ratings)
-                with col_detail:
-                    if st.button("Detail", key=f"noter_detail_{mid}"):
-                        st.query_params['film'] = str(mid)
-                        st.rerun()
+            poster = fetch_poster(row['title'], row.get('year'))
+            no_poster_div = '<div style="width:100%;aspect-ratio:2/3;background:#0d0d1a;border-radius:6px 6px 0 0;display:flex;align-items:center;justify-content:center;"><span style="font-size:0.75rem;color:#333;">No poster</span></div>'
+            poster_html = f'<img src="{poster}" style="width:100%;border-radius:6px 6px 0 0;display:block;" />' if poster else no_poster_div
+            rated_indicator = f'<div style="position:absolute;top:8px;right:8px;background:#e50914;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:#fff;">{current}</div>' if current > 0 else ""
+            st.markdown(f"""
+            <a href="?film={mid}" target="_self" style="text-decoration:none;">
+            <div style="background:#0d0d1a;border:1px solid #1a1a30;border-radius:8px;overflow:hidden;margin-bottom:4px;position:relative;cursor:pointer;transition:border-color 0.15s;"
+                 onmouseover="this.style.borderColor='#e50914'" onmouseout="this.style.borderColor='#1a1a30'">
+                {poster_html}
+                {rated_indicator}
+                <div style="padding:10px 12px 4px;">
+                    <div style="font-family:'Oswald',sans-serif;font-size:0.9rem;color:#e8e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{row['title'][:30]}</div>
+                    <div style="font-size:0.68rem;color:#33334a;margin-top:2px;">{genres_short} {year_s}</div>
+                </div>
+            </div></a>""", unsafe_allow_html=True)
+            new_r = _star_widget(mid, current)
+            if new_r is not None:
+                if new_r == 0:
+                    st.session_state.user_ratings.pop(str(mid), None)
+                else:
+                    st.session_state.user_ratings[str(mid)] = new_r
+                save_user_ratings(st.session_state.user_email, st.session_state.user_ratings)
+                st.rerun()
 
-    st.caption(f"{len(st.session_state.user_ratings)} film(s) note(s)")
+    n_rated = len(st.session_state.user_ratings)
+    st.markdown(f'<div style="text-align:center;font-size:0.72rem;color:#33334a;padding:1rem 0;">{n_rated} film(s) note(s)</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -1399,36 +1610,17 @@ def page_live():
     st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ─────────────────────────────────────────────────────────────
-# BARRE DE NAVIGATION (si connecte)
-# ─────────────────────────────────────────────────────────────
-
-def render_user_nav():
-    """Barre de navigation utilisateur sous la navbar principale."""
-    pages = {
-        "catalogue":    "Catalogue",
-        "noter":        "Noter des films",
-        "reco":         "Mes recommandations",
-        "fusion":       "Sans redondance",
-        "evaluation":   "Evaluation",
-        "live":         "Live",
-    }
-    cols = st.columns(len(pages) + 1)
-    for i, (key, label) in enumerate(pages.items()):
-        with cols[i]:
-            active_style = "color:#e50914 !important;border-color:rgba(229,9,20,0.4) !important;" if st.session_state.active_page == key else ""
-            # On utilise des boutons Streamlit pour la navigation interne
-            if st.button(label, key=f"nav_{key}", use_container_width=True):
-                st.session_state.active_page = key
-                st.rerun()
-    with cols[-1]:
-        if st.button("Deconnexion", key="nav_logout", use_container_width=True):
-            do_logout()
+# render_user_nav() supprimé — fusionné dans render_navbar()
 
 
 # ─────────────────────────────────────────────────────────────
 # DETAIL D'UN FILM — vue complète (avec notation intégrée)
 # ─────────────────────────────────────────────────────────────
+
+if st.session_state.selected_film is not None and not is_logged_in():
+    st.query_params.clear()
+    st.session_state.selected_film = None
+    st.rerun()
 
 if st.session_state.selected_film is not None:
     film_id = st.session_state.selected_film
@@ -1597,8 +1789,6 @@ if st.session_state.selected_film is not None:
 else:
     # Navigation utilisateur connecte
     if is_logged_in():
-        render_user_nav()
-
         page = st.session_state.active_page
 
         if page == "noter":
@@ -1679,81 +1869,8 @@ else:
             st.markdown('</div>', unsafe_allow_html=True)
 
     else:
-        # Non connecte : afficher genre bar + catalogue + bouton connexion
-        genre_html_parts = []
-        all_active = "active" if st.session_state.selected_genre is None else ""
-        genre_html_parts.append(f'<a class="genre-pill genre-pill-all {all_active}" href="?" target="_self">TOUS</a>')
-        for g in GENRE_LIST:
-            active = "active" if st.session_state.selected_genre == g else ""
-            genre_html_parts.append(f'<a class="genre-pill {active}" href="?genre={g}" target="_self">{g}</a>')
-        st.markdown('<div class="genre-bar">' + ''.join(genre_html_parts) + '</div>', unsafe_allow_html=True)
-
-        # Bandeau connexion
-        col_info, col_btn = st.columns([5, 1])
-        with col_info:
-            st.markdown('<div style="padding:0.8rem 3rem;font-size:0.78rem;color:#333355;letter-spacing:1px;">Connectez-vous pour acceder aux recommandations personnalisees, noter des films et plus.</div>', unsafe_allow_html=True)
-        with col_btn:
-            if st.button("Connexion", key="top_login_btn"):
-                st.session_state.active_page = "auth"
-                st.rerun()
-
-        if st.session_state.active_page == "auth":
-            page_auth()
-        else:
-            st.markdown('<div class="content-wrap">', unsafe_allow_html=True)
-            col_search, _ = st.columns([3, 6])
-            with col_search:
-                search_val = st.text_input(
-                    "Rechercher",
-                    value=st.session_state.search_query,
-                    placeholder="Rechercher un film...",
-                    key="search_input",
-                    label_visibility="collapsed"
-                )
-                if search_val != st.session_state.search_query:
-                    st.query_params['q'] = search_val
-                    st.rerun()
-
-            catalog = items_with_stats.copy()
-            if st.session_state.search_query:
-                q = st.session_state.search_query.lower()
-                catalog = catalog[catalog['title'].str.lower().str.contains(q, na=False)]
-                title_label = f"Resultats pour « {st.session_state.search_query} »"
-            elif st.session_state.selected_genre:
-                g = st.session_state.selected_genre
-                catalog = catalog[catalog['genres'].apply(lambda gl: g in gl if isinstance(gl, list) else False)]
-                title_label = g
-            else:
-                catalog = catalog[catalog['n_ratings'] >= 5].copy()
-                catalog['pop_score'] = (
-                    catalog['avg_rating'] * 0.4 +
-                    (catalog['n_ratings'] / catalog['n_ratings'].max()) * 0.6
-                )
-                catalog = catalog.sort_values('pop_score', ascending=False)
-                title_label = "Catalogue · Tous les films"
-
-            if st.session_state.selected_genre or st.session_state.search_query:
-                catalog['pop_score'] = (
-                    catalog['avg_rating'] * 0.4 +
-                    (catalog['n_ratings'] / max(catalog['n_ratings'].max(), 1)) * 0.6
-                )
-                catalog = catalog.sort_values('pop_score', ascending=False)
-
-            n_found = len(catalog)
-            st.markdown(f"""
-            <div class="section-header">
-                <div class="section-title">{title_label}</div>
-                <div class="section-count">{n_found} film{'s' if n_found > 1 else ''}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            if catalog.empty:
-                st.markdown('<div class="empty-state"><div class="empty-state-text">Aucun film trouve pour cette selection</div></div>', unsafe_allow_html=True)
-            else:
-                with st.spinner("Chargement des affiches..."):
-                    render_catalog_grid(catalog)
-
-            st.markdown('</div>', unsafe_allow_html=True)
+        # Non connecte : uniquement la page d'authentification, rien d'autre
+        page_auth()
 
 
 # ─────────────────────────────────────────────────────────────
