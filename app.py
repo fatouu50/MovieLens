@@ -18,8 +18,9 @@ from src.data_loader import load_ratings, load_items, get_dataset_stats
 from src.recommenders import ContentBasedRecommender, recommend_popular
 
 from auth import (
-    register_user, login_user, verify_token,
+    register_user, login_user, login_finalize, verify_token,
     get_user_data, save_user_ratings, save_user_genres,
+    send_otp, verify_otp,
 )
 from recommender import (
     load_data as load_reco_data,
@@ -918,14 +919,18 @@ hr { border-color: #111128 !important; }
 
 # Auth session state defaults — initialisés EN PREMIER
 _auth_defaults = {
-    "jwt_token":      None,
-    "user_email":     None,
-    "user_name":      None,
-    "user_ratings":   {},
-    "genre_prefs":    [],
-    "show_rmse":      False,
-    "rec_method":     "content",
-    "active_page":    "catalogue",
+    "jwt_token":         None,
+    "user_email":        None,
+    "user_name":         None,
+    "user_ratings":      {},
+    "genre_prefs":       [],
+    "show_rmse":         False,
+    "rec_method":        "content",
+    "active_page":       "catalogue",
+    # OTP flow
+    "otp_pending_email": None,   # email en attente de vérification OTP
+    "otp_remember_me":   False,  # valeur "se souvenir de moi" de l'étape 1
+    "otp_dev_code":      None,   # code affiché en mode dev (sans SMTP)
 }
 for _k, _v in _auth_defaults.items():
     if _k not in st.session_state:
@@ -1201,59 +1206,159 @@ render_navbar()
 # PAGE AUTH (si non connecte et acces a une page protegee)
 # ─────────────────────────────────────────────────────────────
 
+def _finalize_register(email: str):
+    """Finalise la session après validation OTP inscription."""
+    token = login_finalize(email, remember_me=False)
+    st.session_state.jwt_token         = token
+    st.session_state.user_email        = email
+    st.session_state.otp_pending_email = None
+    st.session_state.otp_dev_code      = None
+    data = get_user_data(email)
+    st.session_state.user_name    = data["name"]
+    st.session_state.user_ratings = {str(k): v for k, v in data["ratings"].items()}
+    st.session_state.genre_prefs  = data["genre_prefs"]
+    st.session_state.active_page  = "catalogue"
+    time.sleep(0.2)
+    st.rerun()
+
+
 def page_auth():
     st.markdown('<div class="content-wrap">', unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         st.markdown('<div class="auth-logo">MovieLens</div>', unsafe_allow_html=True)
         st.markdown('<div class="auth-sub">Systeme de Recommandation</div>', unsafe_allow_html=True)
-        tab_login, tab_register = st.tabs(["Connexion", "Inscription"])
-        with tab_login:
-            email = st.text_input("Adresse e-mail", key="login_email", placeholder="vous@exemple.com")
-            password = st.text_input("Mot de passe", type="password", key="login_pwd", placeholder="••••••••")
-            if st.button("Se connecter", use_container_width=True, type="primary"):
-                if not email or not password:
-                    st.error("Veuillez remplir tous les champs.")
-                else:
-                    with st.spinner("Verification..."):
-                        ok, msg, token = login_user(email, password)
-                    if ok:
-                        st.session_state.jwt_token  = token
-                        st.session_state.user_email = email.lower().strip()
-                        data = get_user_data(email)
-                        st.session_state.user_name    = data["name"]
-                        st.session_state.user_ratings = {str(k): v for k, v in data["ratings"].items()}
-                        st.session_state.genre_prefs  = data["genre_prefs"]
-                        time.sleep(0.3)
-                        st.rerun()
+
+        # ── ÉTAPE OTP : uniquement après inscription ──────────────
+        if st.session_state.otp_pending_email:
+            pending_email = st.session_state.otp_pending_email
+
+            st.markdown(f"""
+            <div style="
+                background:#0d0d1a;
+                border:1px solid #1e1e38;
+                border-radius:14px;
+                padding:2rem;
+                text-align:center;
+                margin-bottom:1rem;
+            ">
+                <div style="font-size:2rem;margin-bottom:0.5rem;">📧</div>
+                <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:#e2e2ee;letter-spacing:2px;text-transform:uppercase;margin-bottom:0.5rem;">
+                    Confirmez votre email
+                </div>
+                <div style="font-size:0.82rem;color:#44446a;line-height:1.5;">
+                    Un code de confirmation à 6 chiffres a été envoyé à<br>
+                    <strong style="color:#8888cc;">{pending_email}</strong><br>
+                    <span style="font-size:0.72rem;">Valide 5 minutes.</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if st.session_state.otp_dev_code:
+                st.info(f"🛠️ **Mode dev** — Code OTP : `{st.session_state.otp_dev_code}`\n\n*(Configurez SMTP dans secrets.toml pour l'envoi réel)*")
+
+            otp_input = st.text_input(
+                "Code de confirmation",
+                key="otp_input_field",
+                placeholder="000000",
+                max_chars=6,
+            )
+
+            col_v, col_r = st.columns([2, 1])
+            with col_v:
+                if st.button("Valider mon compte", use_container_width=True, type="primary"):
+                    if not otp_input or len(otp_input.strip()) != 6:
+                        st.error("Entrez le code à 6 chiffres.")
                     else:
-                        st.error(msg)
-            st.caption("Connexion securisee — JWT + bcrypt")
-        with tab_register:
-            name   = st.text_input("Nom complet", key="reg_name", placeholder="Votre nom")
-            email_r = st.text_input("Adresse e-mail", key="reg_email", placeholder="vous@exemple.com")
-            pwd_r  = st.text_input("Mot de passe", type="password", key="reg_pwd",
-                                   placeholder="Min. 8 car., 1 maj., 1 chiffre, 1 special")
-            pwd_r2 = st.text_input("Confirmer le mot de passe", type="password", key="reg_pwd2")
-            st.caption("8 caracteres min · 1 majuscule · 1 chiffre · 1 caractere special")
-            if st.button("Creer mon compte", use_container_width=True, type="primary"):
-                if pwd_r != pwd_r2:
-                    st.error("Les mots de passe ne correspondent pas.")
-                else:
-                    with st.spinner("Creation du compte..."):
-                        ok, msg, token = register_user(name, email_r, pwd_r)
+                        valid, vmsg = verify_otp(pending_email, otp_input.strip())
+                        if valid:
+                            _finalize_register(pending_email)
+                        else:
+                            st.error(vmsg)
+            with col_r:
+                if st.button("Renvoyer", use_container_width=True):
+                    with st.spinner("Envoi..."):
+                        ok, smsg = send_otp(pending_email)
                     if ok:
-                        st.session_state.jwt_token  = token
-                        st.session_state.user_email = email_r.strip().lower()
-                        data = get_user_data(email_r)
-                        st.session_state.user_name    = data["name"]
-                        st.session_state.user_ratings = {str(k): v for k, v in data["ratings"].items()}
-                        st.session_state.genre_prefs  = data["genre_prefs"]
-                        st.session_state.active_page  = "catalogue"
-                        time.sleep(0.3)
-                        st.rerun()
+                        st.success("Nouveau code envoyé.")
                     else:
-                        st.error(msg)
+                        if "[DEV]" in smsg:
+                            import re as _re
+                            m = _re.search(r":\s*(\d{6})\s*\(", smsg)
+                            if m:
+                                st.session_state.otp_dev_code = m.group(1)
+                        st.warning(smsg)
+                        st.rerun()
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("← Annuler", use_container_width=False):
+                st.session_state.otp_pending_email = None
+                st.session_state.otp_dev_code      = None
+                st.rerun()
+
+        else:
+            # ── Connexion / Inscription ───────────────────────────
+            tab_login, tab_register = st.tabs(["Connexion", "Inscription"])
+
+            with tab_login:
+                email    = st.text_input("Adresse e-mail", key="login_email", placeholder="vous@exemple.com")
+                password = st.text_input("Mot de passe", type="password", key="login_pwd", placeholder="••••••••")
+
+                col_chk, _ = st.columns([1, 1])
+                with col_chk:
+                    remember_me = st.checkbox("Se souvenir de moi (30 jours)", key="login_remember")
+
+                if st.button("Se connecter", use_container_width=True, type="primary"):
+                    if not email or not password:
+                        st.error("Veuillez remplir tous les champs.")
+                    else:
+                        with st.spinner("Vérification..."):
+                            ok, msg, token = login_user(email, password)
+                        if ok and msg == "OK":
+                            # Si remember_me coché → regénérer un token longue durée
+                            if remember_me:
+                                token = login_finalize(email.strip().lower(), remember_me=True)
+                            st.session_state.jwt_token  = token
+                            st.session_state.user_email = email.strip().lower()
+                            data = get_user_data(email)
+                            st.session_state.user_name    = data["name"]
+                            st.session_state.user_ratings = {str(k): v for k, v in data["ratings"].items()}
+                            st.session_state.genre_prefs  = data["genre_prefs"]
+                            st.session_state.active_page  = "catalogue"
+                            time.sleep(0.2)
+                            st.rerun()
+                        else:
+                            st.error(msg)
+
+                st.caption("Connexion sécurisée — JWT + bcrypt")
+
+            with tab_register:
+                name    = st.text_input("Nom complet", key="reg_name", placeholder="Votre nom")
+                email_r = st.text_input("Adresse e-mail", key="reg_email", placeholder="vous@exemple.com")
+                pwd_r   = st.text_input("Mot de passe", type="password", key="reg_pwd",
+                                        placeholder="Min. 8 car., 1 maj., 1 chiffre, 1 special")
+                pwd_r2  = st.text_input("Confirmer le mot de passe", type="password", key="reg_pwd2")
+                st.caption("8 caractères min · 1 majuscule · 1 chiffre · 1 caractère spécial")
+                if st.button("Créer mon compte", use_container_width=True, type="primary"):
+                    if pwd_r != pwd_r2:
+                        st.error("Les mots de passe ne correspondent pas.")
+                    else:
+                        with st.spinner("Création du compte..."):
+                            ok, msg, _ = register_user(name, email_r, pwd_r)
+                        if ok and msg == "OTP_REQUIRED":
+                            # Compte créé → envoyer OTP de confirmation
+                            with st.spinner("Envoi du code de confirmation..."):
+                                sent_ok, sent_msg = send_otp(email_r.strip().lower())
+                            st.session_state.otp_pending_email = email_r.strip().lower()
+                            if not sent_ok:
+                                import re as _re
+                                m = _re.search(r":\s*(\d{6})\s*\(", sent_msg)
+                                if m:
+                                    st.session_state.otp_dev_code = m.group(1)
+                            st.rerun()
+                        else:
+                            st.error(msg)
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 

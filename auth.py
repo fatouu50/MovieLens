@@ -1,6 +1,7 @@
 """
 auth.py — Authentification sécurisée avec Supabase
 Sécurité : bcrypt (hachage mots de passe) + JWT (sessions) + HTTPS-ready
+Nouvelles fonctionnalités : OTP email (vérification 2 étapes) + Se souvenir de moi (JWT 30 jours)
 """
 
 import bcrypt
@@ -10,8 +11,12 @@ import re
 import time
 import hashlib
 import secrets
+import random
 import requests
 import json
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timezone
 
 # ─────────────────────────────────────────────
@@ -22,6 +27,11 @@ def _load_secrets():
     jwt_secret   = None
     supabase_url = None
     supabase_key = None
+    smtp_host    = None
+    smtp_port    = None
+    smtp_user    = None
+    smtp_pass    = None
+    smtp_from    = None
 
     # Tentative via st.secrets
     try:
@@ -29,6 +39,11 @@ def _load_secrets():
         jwt_secret   = st.secrets.get("security", {}).get("JWT_SECRET")
         supabase_url = st.secrets.get("supabase", {}).get("supabase_url")
         supabase_key = st.secrets.get("supabase", {}).get("anon_key")
+        smtp_host    = st.secrets.get("smtp", {}).get("host")
+        smtp_port    = st.secrets.get("smtp", {}).get("port", 587)
+        smtp_user    = st.secrets.get("smtp", {}).get("username")
+        smtp_pass    = st.secrets.get("smtp", {}).get("password")
+        smtp_from    = st.secrets.get("smtp", {}).get("from_email")
     except Exception:
         pass
 
@@ -39,14 +54,24 @@ def _load_secrets():
         supabase_url = os.environ.get("SUPABASE_URL", "")
     if not supabase_key:
         supabase_key = os.environ.get("SUPABASE_ANON_KEY", "")
+    if not smtp_host:
+        smtp_host = os.environ.get("SMTP_HOST", "")
+    if not smtp_port:
+        smtp_port = int(os.environ.get("SMTP_PORT", 587))
+    if not smtp_user:
+        smtp_user = os.environ.get("SMTP_USERNAME", "")
+    if not smtp_pass:
+        smtp_pass = os.environ.get("SMTP_PASSWORD", "")
+    if not smtp_from:
+        smtp_from = os.environ.get("SMTP_FROM", smtp_user)
 
     # Validation : URL Supabase doit commencer par https://
     if supabase_url and not supabase_url.startswith("https://"):
         supabase_url = "https://" + supabase_url
 
-    return jwt_secret, supabase_url, supabase_key
+    return jwt_secret, supabase_url, supabase_key, smtp_host, int(smtp_port or 587), smtp_user, smtp_pass, smtp_from
 
-SECRET_KEY, SUPABASE_URL, SUPABASE_KEY = _load_secrets()
+SECRET_KEY, SUPABASE_URL, SUPABASE_KEY, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM = _load_secrets()
 
 # Vérification critique au démarrage
 if not SUPABASE_URL:
@@ -55,7 +80,7 @@ if not SUPABASE_URL:
         st.error(
             "⚠️ **Configuration Supabase manquante.**\n\n"
             "Ajoutez dans `.streamlit/secrets.toml` :\n"
-            "```toml\n[supabase]\nsupabase_url = \"https://xxxx.supabase.co\"\nanon_key = \"eyJ...\"\n\n[security]\nJWT_SECRET = \"votre_secret\"\n```"
+            "```toml\n[supabase]\nsupabase_url = \"https://xxxx.supabase.co\"\nanon_key = \"eyJ...\"\n\n[security]\nJWT_SECRET = \"votre_secret\"\n\n[smtp]\nhost = \"smtp.gmail.com\"\nport = 587\nusername = \"vous@gmail.com\"\npassword = \"mot_de_passe_app\"\nfrom_email = \"vous@gmail.com\"\n```"
         )
         st.stop()
     except Exception:
@@ -64,11 +89,14 @@ if not SUPABASE_URL:
             "SUPABASE_URL ou configurez .streamlit/secrets.toml."
         )
 
-JWT_ALGO      = "HS256"
-TOKEN_TTL     = 3600 * 8
-BCRYPT_ROUNDS = 12
-MAX_ATTEMPTS  = 5
-LOCKOUT_SEC   = 300
+JWT_ALGO         = "HS256"
+TOKEN_TTL        = 3600 * 8          # 8 heures (session normale)
+TOKEN_TTL_LONG   = 3600 * 24 * 30    # 30 jours (se souvenir de moi)
+BCRYPT_ROUNDS    = 12
+MAX_ATTEMPTS     = 5
+LOCKOUT_SEC      = 300
+OTP_TTL          = 300               # 5 minutes
+OTP_LENGTH       = 6
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
@@ -148,14 +176,16 @@ def _reset_attempts(email: str):
 # JWT TOKENS
 # ─────────────────────────────────────────────
 
-def _generate_token(email: str, name: str) -> str:
+def _generate_token(email: str, name: str, remember_me: bool = False) -> str:
+    ttl = TOKEN_TTL_LONG if remember_me else TOKEN_TTL
     payload = {
-        "sub":   hashlib.sha256(email.encode()).hexdigest(),
-        "name":  name,
-        "email": email,
-        "iat":   int(time.time()),
-        "exp":   int(time.time()) + TOKEN_TTL,
-        "jti":   secrets.token_hex(16),
+        "sub":         hashlib.sha256(email.encode()).hexdigest(),
+        "name":        name,
+        "email":       email,
+        "iat":         int(time.time()),
+        "exp":         int(time.time()) + ttl,
+        "jti":         secrets.token_hex(16),
+        "remember_me": remember_me,
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGO)
 
@@ -164,6 +194,128 @@ def verify_token(token: str) -> dict | None:
         return jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGO])
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return None
+
+
+# ─────────────────────────────────────────────
+# OTP — GÉNÉRATION & ENVOI EMAIL
+# ─────────────────────────────────────────────
+
+def _generate_otp() -> str:
+    """Génère un code OTP numérique à 6 chiffres."""
+    return str(random.randint(100000, 999999))
+
+def _send_otp_email(email: str, otp: str, name: str) -> tuple[bool, str]:
+    """
+    Envoie le code OTP par email via SMTP.
+    Retourne (succès, message).
+    Si SMTP non configuré, retourne (False, message) avec le code affiché
+    en mode développement.
+    """
+    if not SMTP_HOST or not SMTP_USER:
+        # Mode développement : pas de SMTP configuré
+        return False, f"[DEV] Code OTP pour {email} : {otp} (configurez SMTP dans secrets.toml pour l'envoi réel)"
+
+    subject = "MovieLens — Confirmez votre inscription"
+    html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {{ font-family: 'Helvetica Neue', Arial, sans-serif; background: #080810; color: #e2e2ee; margin: 0; padding: 0; }}
+    .container {{ max-width: 480px; margin: 40px auto; background: #0d0d1a; border: 1px solid #1e1e38; border-radius: 14px; padding: 40px 32px; }}
+    .logo {{ font-size: 2rem; font-weight: 700; letter-spacing: 4px; color: #e50914; text-transform: uppercase; text-align: center; margin-bottom: 8px; }}
+    .sub {{ font-size: 0.7rem; color: #333355; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 32px; }}
+    .greeting {{ font-size: 0.95rem; color: #a0a0c0; margin-bottom: 24px; }}
+    .otp-box {{ background: #111128; border: 1px solid #e50914; border-radius: 10px; text-align: center; padding: 24px; margin: 24px 0; }}
+    .otp-code {{ font-size: 2.8rem; font-weight: 700; letter-spacing: 12px; color: #ffffff; font-family: monospace; }}
+    .otp-note {{ font-size: 0.75rem; color: #44446a; margin-top: 10px; }}
+    .footer-note {{ font-size: 0.72rem; color: #222240; text-align: center; margin-top: 28px; line-height: 1.5; }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">MovieLens</div>
+    <div class="sub">Système de Recommandation</div>
+    <div class="greeting">Bienvenue {name} !</div>
+    <p style="color:#8888aa;font-size:0.9rem;">Merci de vous inscrire sur MovieLens. Voici votre code de confirmation pour valider votre compte :</p>
+    <div class="otp-box">
+      <div class="otp-code">{otp}</div>
+      <div class="otp-note">Valide pendant 5 minutes</div>
+    </div>
+    <p style="color:#6666aa;font-size:0.85rem;">Si vous n'avez pas créé de compte, ignorez cet email.</p>
+    <div class="footer-note">MovieLens · Plateforme de recommandation de films<br>Ce code est à usage unique et confidentiel.</div>
+  </div>
+</body>
+</html>
+    """
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = SMTP_FROM or SMTP_USER
+        msg["To"]      = email
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_FROM or SMTP_USER, email, msg.as_string())
+
+        return True, "Code OTP envoyé avec succès."
+    except smtplib.SMTPAuthenticationError:
+        return False, "Erreur SMTP : identifiants incorrects. Vérifiez votre configuration."
+    except smtplib.SMTPConnectError:
+        return False, "Impossible de joindre le serveur SMTP. Vérifiez l'hôte et le port."
+    except Exception as e:
+        return False, f"Erreur lors de l'envoi de l'email : {str(e)}"
+
+def send_otp(email: str) -> tuple[bool, str]:
+    """
+    Génère un OTP, le stocke dans Supabase et l'envoie par email.
+    Retourne (succès, message).
+    """
+    user = _get_user(email.lower())
+    if not user:
+        return False, "Utilisateur introuvable."
+
+    otp = _generate_otp()
+    otp_expires = time.time() + OTP_TTL
+
+    _update_user(email.lower(), {
+        "otp_code":    otp,
+        "otp_expires": otp_expires,
+    })
+
+    ok, msg = _send_otp_email(email, otp, user.get("name", ""))
+    return ok, msg
+
+def verify_otp(email: str, code: str) -> tuple[bool, str]:
+    """
+    Vérifie le code OTP saisi par l'utilisateur.
+    Retourne (valide, message).
+    """
+    user = _get_user(email.lower())
+    if not user:
+        return False, "Utilisateur introuvable."
+
+    stored_otp  = user.get("otp_code", "")
+    otp_expires = user.get("otp_expires", 0) or 0
+
+    if not stored_otp:
+        return False, "Aucun code OTP en attente. Reconnectez-vous."
+
+    if time.time() > float(otp_expires):
+        _update_user(email.lower(), {"otp_code": None, "otp_expires": None})
+        return False, "Code OTP expiré. Reconnectez-vous pour en recevoir un nouveau."
+
+    if code.strip() != str(stored_otp):
+        return False, "Code OTP incorrect."
+
+    # OTP valide : on efface le code
+    _update_user(email.lower(), {"otp_code": None, "otp_expires": None})
+    return True, "Code vérifié."
 
 
 # ─────────────────────────────────────────────
@@ -195,18 +347,24 @@ def register_user(name: str, email: str, password: str) -> tuple[bool, str, str 
         "last_failed_at":  0,
         "ratings":         {},
         "genre_prefs":     [],
+        "otp_code":        None,
+        "otp_expires":     None,
     }
     if _create_user(data):
-        token = _generate_token(email, name)
-        return True, "Compte créé avec succès.", token
+        # Compte créé → envoyer OTP pour valider l'email
+        return True, "OTP_REQUIRED", None
     return False, "Erreur lors de la création du compte. Réessayez.", None
 
 
 # ─────────────────────────────────────────────
-# CONNEXION
+# CONNEXION (étape 1 — vérification mot de passe)
 # ─────────────────────────────────────────────
 
 def login_user(email: str, password: str) -> tuple[bool, str, str | None]:
+    """
+    Étape 1 du login : vérifie email + mot de passe.
+    Si OK, retourne (True, "OTP_REQUIRED", None) pour déclencher l'envoi OTP.
+    """
     email = email.strip().lower()
     user  = _get_user(email)
 
@@ -229,8 +387,20 @@ def login_user(email: str, password: str) -> tuple[bool, str, str | None]:
 
     _reset_attempts(email)
     _update_user(email, {"last_login": datetime.now(timezone.utc).isoformat()})
-    token = _generate_token(email, user["name"])
-    return True, "Connexion réussie.", token
+
+    # Mot de passe correct → JWT direct (OTP uniquement à l'inscription)
+    user_data = _get_user(email) or {}
+    token = _generate_token(email, user_data.get("name", ""), remember_me=False)
+    return True, "OK", token
+
+
+def login_finalize(email: str, remember_me: bool = False) -> str:
+    """
+    Génère le JWT final avec remember_me — appelé après validation OTP inscription
+    ou pour renouveler un token longue durée.
+    """
+    user = _get_user(email.lower()) or {}
+    return _generate_token(email.lower(), user.get("name", ""), remember_me=remember_me)
 
 
 # ─────────────────────────────────────────────
