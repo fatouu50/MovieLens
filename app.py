@@ -1136,15 +1136,14 @@ def render_rec_row(rank: int, row, item_id: int = None):
     _t_r = st.query_params.get('t', '')
     if _t_r and item_id:
         href = f"?film={item_id}&t={_t_r}"
-    html_rec = f"""<a href="{href}" target="_self" style="text-decoration:none;display:block;margin-bottom:8px;">
-<div style="background:#0d0d1a;border:1px solid #1a1a30;border-radius:10px;padding:16px 20px;cursor:pointer;" onmouseover="this.style.borderColor='#e50914';this.style.background='#110011'" onmouseout="this.style.borderColor='#1a1a30';this.style.background='#0d0d1a'">
+    st.markdown(f"""<a href="{href}" target="_self" style="text-decoration:none;display:block;margin-bottom:8px;">
+<div style="background:#0d0d1a;border:1px solid #1a1a30;border-radius:10px;padding:16px 20px;cursor:pointer;">
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:0.6rem;font-weight:600;letter-spacing:2px;color:#fff;background:{badge_color};padding:2px 8px;border-radius:3px;">{method_txt}</span><span style="font-size:0.65rem;color:#333355;letter-spacing:1px;">#{rank}</span>{consensus}<span style="margin-left:auto;font-size:0.65rem;color:#22223a;">&#8594;</span></div>
 <div style="font-family:Oswald,sans-serif;font-size:1.05rem;color:#f0f0ff;font-weight:500;margin-bottom:3px;">{row.title}</div>
 <div style="font-size:0.72rem;color:#44445a;margin-bottom:10px;">{genres_html}</div>
 <div style="background:#111128;border-radius:3px;height:3px;overflow:hidden;"><div style="height:3px;border-radius:3px;background:linear-gradient(90deg,#e50914,#ff4444);width:{score_pct}%;"></div></div>
 <div style="font-size:0.62rem;color:#222240;margin-top:4px;">Score {score_val:.4f}</div>
-</div></a>"""
-    components.html(html_rec, height=130, scrolling=False)
+</div></a>""", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1326,9 +1325,8 @@ def page_auth():
                             st.session_state.user_ratings = {str(k): v for k, v in data["ratings"].items()}
                             st.session_state.genre_prefs  = data["genre_prefs"]
                             st.session_state.active_page  = "catalogue"
-                            # Persistance : stocker le token dans l'URL si remember_me
-                            if remember_me:
-                                st.query_params['t'] = token
+                            # Toujours stocker le token dans l'URL pour la navigation
+                            st.query_params['t'] = token
                             time.sleep(0.2)
                             st.rerun()
                         else:
@@ -1626,9 +1624,13 @@ def page_noter():
             rated_indicator = f'<div style="position:absolute;top:8px;right:8px;background:#e50914;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:#fff;">{current}</div>' if current > 0 else ""
             _t_n = st.query_params.get('t', '')
             _noter_href = f"?film={mid}&t={_t_n}" if _t_n else f"?film={mid}"
-            _noter_html = f"""<a href="{_noter_href}" target="_self" style="text-decoration:none;display:block;">
-<div style="background:#0d0d1a;border:1px solid #1a1a30;border-radius:8px;overflow:hidden;margin-bottom:4px;position:relative;cursor:pointer;" onmouseover="this.style.borderColor='#e50914'" onmouseout="this.style.borderColor='#1a1a30'">{poster_html}{rated_indicator}<div style="padding:10px 12px 4px;"><div style="font-family:Oswald,sans-serif;font-size:0.9rem;color:#e8e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{row["title"][:30]}</div><div style="font-size:0.68rem;color:#33334a;margin-top:2px;">{genres_short} {year_s}</div></div></div></a>"""
-            components.html(_noter_html, height=320, scrolling=False)
+            st.markdown(f"""<a href="{_noter_href}" target="_self" style="text-decoration:none;display:block;">
+<div style="background:#0d0d1a;border:1px solid #1a1a30;border-radius:8px;overflow:hidden;margin-bottom:4px;position:relative;cursor:pointer;">
+{poster_html}{rated_indicator}
+<div style="padding:10px 12px 4px;">
+<div style="font-family:Oswald,sans-serif;font-size:0.9rem;color:#e8e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{row['title'][:30]}</div>
+<div style="font-size:0.68rem;color:#33334a;margin-top:2px;">{genres_short} {year_s}</div>
+</div></div></a>""", unsafe_allow_html=True)
             new_r = _star_widget(mid, current)
             if new_r is not None:
                 if new_r == 0:
@@ -1851,18 +1853,6 @@ if st.session_state.selected_film is not None:
         st.markdown('<div class="reco-section"><div class="reco-title">Distribution des notes</div></div>', unsafe_allow_html=True)
         dist = movie_ratings.value_counts().sort_index()
         st.bar_chart(dist, height=160)
-
-    # Films similaires TMDB
-    if tmdb_id:
-        similars = tmdb_similar(tmdb_id)
-        if similars:
-            st.markdown('<div class="reco-section"><div class="reco-title">Films similaires (TMDB)</div></div>', unsafe_allow_html=True)
-            s_cols = st.columns(min(6, len(similars)))
-            for si, sim in enumerate(similars[:6]):
-                with s_cols[si]:
-                    if sim.get("poster_path"):
-                        st.image(f"{TMDB_IMG_LARGE}{sim['poster_path']}", use_container_width=True)
-                    st.caption(sim.get("title", "")[:20])
 
     # Recommandations basees sur ce film
     st.markdown('<div class="reco-section"><div class="reco-title">Films similaires recommandes</div></div>', unsafe_allow_html=True)
