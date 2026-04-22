@@ -928,9 +928,8 @@ _auth_defaults = {
     "rec_method":        "content",
     "active_page":       "catalogue",
     # OTP flow
-    "otp_pending_email": None,   # email en attente de vérification OTP
-    "otp_remember_me":   False,  # valeur "se souvenir de moi" de l'étape 1
-    "otp_dev_code":      None,   # code affiché en mode dev (sans SMTP)
+    "otp_pending_email": None,
+    "otp_dev_code":      None,
 }
 for _k, _v in _auth_defaults.items():
     if _k not in st.session_state:
@@ -938,6 +937,22 @@ for _k, _v in _auth_defaults.items():
 
 # Lecture des query params — APRÈS les defaults pour écraser correctement
 _qp = st.query_params
+
+# ── SE SOUVENIR DE MOI : relire le token depuis l'URL ──────────
+# Si l'URL contient ?t=<jwt> et qu'on n'est pas encore connecté,
+# on restaure automatiquement la session sans redemander le mot de passe.
+if 't' in _qp and not st.session_state.jwt_token:
+    _url_token = _qp['t']
+    _payload = verify_token(_url_token)
+    if _payload:
+        _email = _payload.get("email", "")
+        st.session_state.jwt_token  = _url_token
+        st.session_state.user_email = _email
+        _udata = get_user_data(_email)
+        st.session_state.user_name    = _udata["name"]
+        st.session_state.user_ratings = {str(k): v for k, v in _udata["ratings"].items()}
+        st.session_state.genre_prefs  = _udata["genre_prefs"]
+        st.session_state.active_page  = "catalogue"
 
 if 'film' in _qp:
     try:
@@ -964,8 +979,7 @@ if 'page' in _qp:
         st.session_state.active_page = _qp['page']
     else:
         st.session_state.active_page = "catalogue"
-elif 'film' not in _qp and 'genre' not in _qp and 'q' not in _qp and '__logout' not in _qp:
-    # URL propre sans paramètre = retour à l'accueil
+elif 'film' not in _qp and 'genre' not in _qp and 'q' not in _qp and '__logout' not in _qp and 't' not in _qp:
     st.session_state.active_page = "catalogue"
 
 
@@ -1035,6 +1049,8 @@ avg_note = round(ratings_df['rating'].mean(), 1)
 def movie_card_html(item_id, title, year, genres_str, avg_rating=0, n_ratings=0, badge=None):
     poster_url = fetch_poster(title, year)
     year_str = str(int(year)) if pd.notna(year) and year != 0 else "—"
+    _t_val = st.query_params.get('t', '')
+    _film_href = f"?film={item_id}&t={_t_val}" if _t_val else f"?film={item_id}"
 
     if poster_url:
         img_html = f'<img src="{poster_url}" alt="{title}" loading="lazy">'
@@ -1049,7 +1065,7 @@ def movie_card_html(item_id, title, year, genres_str, avg_rating=0, n_ratings=0,
         badge_html = f'<div class="movie-card-badge">* {avg_rating:.1f}</div>'
 
     return f"""
-    <a class="movie-card" href="?film={item_id}" target="_self">
+    <a class="movie-card" href="{_film_href}" target="_self">
         {img_html}
         {badge_html}
         <div class="movie-card-overlay">
@@ -1117,35 +1133,18 @@ def render_rec_row(rank: int, row, item_id: int = None):
     badge_color = {"CONTENT": "#7c5cbf", "USER-BASED": "#2e86ab", "ITEM-BASED": "#e07b39"}.get(method_txt, "#555")
 
     href = f"?film={item_id}" if item_id else "#"
-    st.markdown(f"""
-    <a href="{href}" target="_self" style="text-decoration:none;display:block;">
-    <div style="
-        background:#0d0d1a;
-        border:1px solid #1a1a30;
-        border-radius:10px;
-        padding:16px 20px;
-        margin-bottom:8px;
-        cursor:pointer;
-        transition:border-color 0.15s,background 0.15s;
-        position:relative;
-        overflow:hidden;
-    " onmouseover="this.style.borderColor='#e50914';this.style.background='#110011'"
-       onmouseout="this.style.borderColor='#1a1a30';this.style.background='#0d0d1a'">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span style="font-size:0.6rem;font-weight:600;letter-spacing:2px;color:#fff;background:{badge_color};padding:2px 8px;border-radius:3px;">{method_txt}</span>
-            <span style="font-size:0.65rem;color:#333355;letter-spacing:1px;">#{rank}</span>
-            {consensus}
-            <span style="margin-left:auto;font-size:0.65rem;color:#22223a;">→</span>
-        </div>
-        <div style="font-family:'Oswald',sans-serif;font-size:1.05rem;color:#f0f0ff;font-weight:500;margin-bottom:3px;">{row.title}</div>
-        <div style="font-size:0.72rem;color:#44445a;margin-bottom:10px;">{genres_html}</div>
-        <div style="background:#111128;border-radius:3px;height:3px;overflow:hidden;">
-            <div style="height:3px;border-radius:3px;background:linear-gradient(90deg,#e50914,#ff4444);width:{score_pct}%;"></div>
-        </div>
-        <div style="font-size:0.62rem;color:#222240;margin-top:4px;">Score {score_val:.4f}</div>
-    </div>
-    </a>
-    """, unsafe_allow_html=True)
+    _t_r = st.query_params.get('t', '')
+    if _t_r and item_id:
+        href = f"?film={item_id}&t={_t_r}"
+    html_rec = f"""<a href="{href}" target="_self" style="text-decoration:none;display:block;margin-bottom:8px;">
+<div style="background:#0d0d1a;border:1px solid #1a1a30;border-radius:10px;padding:16px 20px;cursor:pointer;" onmouseover="this.style.borderColor='#e50914';this.style.background='#110011'" onmouseout="this.style.borderColor='#1a1a30';this.style.background='#0d0d1a'">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:0.6rem;font-weight:600;letter-spacing:2px;color:#fff;background:{badge_color};padding:2px 8px;border-radius:3px;">{method_txt}</span><span style="font-size:0.65rem;color:#333355;letter-spacing:1px;">#{rank}</span>{consensus}<span style="margin-left:auto;font-size:0.65rem;color:#22223a;">&#8594;</span></div>
+<div style="font-family:Oswald,sans-serif;font-size:1.05rem;color:#f0f0ff;font-weight:500;margin-bottom:3px;">{row.title}</div>
+<div style="font-size:0.72rem;color:#44445a;margin-bottom:10px;">{genres_html}</div>
+<div style="background:#111128;border-radius:3px;height:3px;overflow:hidden;"><div style="height:3px;border-radius:3px;background:linear-gradient(90deg,#e50914,#ff4444);width:{score_pct}%;"></div></div>
+<div style="font-size:0.62rem;color:#222240;margin-top:4px;">Score {score_val:.4f}</div>
+</div></a>"""
+    components.html(html_rec, height=130, scrolling=False)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1168,10 +1167,12 @@ def render_navbar():
     }
 
     if logged:
+        _t = st.query_params.get('t', '')
+        _t_suffix = f"&t={_t}" if _t else ""
         nav_links_html = ""
         for key, label in pages.items():
             css_class = "unb-pill active" if key == active else "unb-pill"
-            nav_links_html += f'<a class="{css_class}" href="?page={key}" target="_self">{label}</a>'
+            nav_links_html += f'<a class="{css_class}" href="?page={key}{_t_suffix}" target="_self">{label}</a>'
         right_html = (
             f'<span class="unb-user">{user_name}</span>'
             f'<a class="unb-logout" href="?__logout=1" target="_self">Deconnexion</a>'
@@ -1325,6 +1326,9 @@ def page_auth():
                             st.session_state.user_ratings = {str(k): v for k, v in data["ratings"].items()}
                             st.session_state.genre_prefs  = data["genre_prefs"]
                             st.session_state.active_page  = "catalogue"
+                            # Persistance : stocker le token dans l'URL si remember_me
+                            if remember_me:
+                                st.query_params['t'] = token
                             time.sleep(0.2)
                             st.rerun()
                         else:
@@ -1530,7 +1534,7 @@ def page_evaluation():
         <div class="reco-title">Apercu de la matrice User-Film</div>
     </div>
     """, unsafe_allow_html=True)
-    matrix_sample = ratings_df.pivot_table(index="user_id", columns="movie_id", values="rating").iloc[:10, :10]
+    matrix_sample = ratings_df.pivot_table(index="user_id", columns="item_id", values="rating").iloc[:10, :10]
     st.dataframe(matrix_sample.style.background_gradient(cmap="YlOrBr", axis=None), use_container_width=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
@@ -1620,17 +1624,11 @@ def page_noter():
             no_poster_div = '<div style="width:100%;aspect-ratio:2/3;background:#0d0d1a;border-radius:6px 6px 0 0;display:flex;align-items:center;justify-content:center;"><span style="font-size:0.75rem;color:#333;">No poster</span></div>'
             poster_html = f'<img src="{poster}" style="width:100%;border-radius:6px 6px 0 0;display:block;" />' if poster else no_poster_div
             rated_indicator = f'<div style="position:absolute;top:8px;right:8px;background:#e50914;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:#fff;">{current}</div>' if current > 0 else ""
-            st.markdown(f"""
-            <a href="?film={mid}" target="_self" style="text-decoration:none;">
-            <div style="background:#0d0d1a;border:1px solid #1a1a30;border-radius:8px;overflow:hidden;margin-bottom:4px;position:relative;cursor:pointer;transition:border-color 0.15s;"
-                 onmouseover="this.style.borderColor='#e50914'" onmouseout="this.style.borderColor='#1a1a30'">
-                {poster_html}
-                {rated_indicator}
-                <div style="padding:10px 12px 4px;">
-                    <div style="font-family:'Oswald',sans-serif;font-size:0.9rem;color:#e8e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{row['title'][:30]}</div>
-                    <div style="font-size:0.68rem;color:#33334a;margin-top:2px;">{genres_short} {year_s}</div>
-                </div>
-            </div></a>""", unsafe_allow_html=True)
+            _t_n = st.query_params.get('t', '')
+            _noter_href = f"?film={mid}&t={_t_n}" if _t_n else f"?film={mid}"
+            _noter_html = f"""<a href="{_noter_href}" target="_self" style="text-decoration:none;display:block;">
+<div style="background:#0d0d1a;border:1px solid #1a1a30;border-radius:8px;overflow:hidden;margin-bottom:4px;position:relative;cursor:pointer;" onmouseover="this.style.borderColor='#e50914'" onmouseout="this.style.borderColor='#1a1a30'">{poster_html}{rated_indicator}<div style="padding:10px 12px 4px;"><div style="font-family:Oswald,sans-serif;font-size:0.9rem;color:#e8e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{row["title"][:30]}</div><div style="font-size:0.68rem;color:#33334a;margin-top:2px;">{genres_short} {year_s}</div></div></div></a>"""
+            components.html(_noter_html, height=320, scrolling=False)
             new_r = _star_widget(mid, current)
             if new_r is not None:
                 if new_r == 0:
@@ -1823,7 +1821,7 @@ if st.session_state.selected_film is not None:
     # Bouton retour
     st.markdown("""
     <div style="padding: 0 3rem 0 3rem; margin-top: -0.5rem;">
-        <a href="?" target="_self" class="back-link">Retour</a>
+        <a href="javascript:history.back()" class="back-link">Retour</a>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1912,10 +1910,12 @@ else:
             # Catalogue par defaut
             genre_html_parts = []
             all_active = "active" if st.session_state.selected_genre is None else ""
-            genre_html_parts.append(f'<a class="genre-pill genre-pill-all {all_active}" href="?" target="_self">TOUS</a>')
+            _t_g = st.query_params.get('t', '')
+            _tg = f"&t={_t_g}" if _t_g else ""
+            genre_html_parts.append(f'<a class="genre-pill genre-pill-all {all_active}" href="?{_tg}" target="_self">TOUS</a>')
             for g in GENRE_LIST:
                 active = "active" if st.session_state.selected_genre == g else ""
-                genre_html_parts.append(f'<a class="genre-pill {active}" href="?genre={g}" target="_self">{g}</a>')
+                genre_html_parts.append(f'<a class="genre-pill {active}" href="?genre={g}{_tg}" target="_self">{g}</a>')
             st.markdown('<div class="genre-bar">' + ''.join(genre_html_parts) + '</div>', unsafe_allow_html=True)
 
             st.markdown('<div class="content-wrap">', unsafe_allow_html=True)
