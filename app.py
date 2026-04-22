@@ -1070,9 +1070,17 @@ def page_auth():
                     st.error("Les mots de passe ne correspondent pas.")
                 else:
                     with st.spinner("Creation du compte..."):
-                        ok, msg = register_user(name, email_r, pwd_r)
+                        ok, msg, token = register_user(name, email_r, pwd_r)
                     if ok:
-                        st.success(f"{msg} — Vous pouvez maintenant vous connecter.")
+                        st.session_state.jwt_token  = token
+                        st.session_state.user_email = email_r.strip().lower()
+                        data = get_user_data(email_r)
+                        st.session_state.user_name    = data["name"]
+                        st.session_state.user_ratings = {str(k): v for k, v in data["ratings"].items()}
+                        st.session_state.genre_prefs  = data["genre_prefs"]
+                        st.session_state.active_page  = "catalogue"
+                        time.sleep(0.3)
+                        st.rerun()
                     else:
                         st.error(msg)
     st.markdown('</div>', unsafe_allow_html=True)
