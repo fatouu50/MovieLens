@@ -59,6 +59,7 @@ def _create_user(data: dict) -> bool:
         import streamlit as st
         st.error(f"Supabase error {r.status_code}: {r.text}")
     return r.status_code in (200, 201)
+
 def _update_user(email: str, data: dict) -> bool:
     url = f"{SUPABASE_URL}/rest/v1/cinematch_users?email=eq.{email}"
     r = requests.patch(url, headers={**HEADERS, "Prefer": "return=minimal"},
@@ -132,20 +133,20 @@ def verify_token(token: str) -> dict | None:
 # INSCRIPTION
 # ─────────────────────────────────────────────
 
-def register_user(name: str, email: str, password: str) -> tuple[bool, str]:
+def register_user(name: str, email: str, password: str) -> tuple[bool, str, str | None]:
     name  = name.strip()
     email = email.strip().lower()
 
     if not name or len(name) < 2:
-        return False, "Nom invalide (min. 2 caractères)."
+        return False, "Nom invalide (min. 2 caractères).", None
     if not _validate_email(email):
-        return False, "Adresse e-mail invalide."
+        return False, "Adresse e-mail invalide.", None
     ok, msg = _validate_password(password)
     if not ok:
-        return False, msg
+        return False, msg, None
 
     if _get_user(email):
-        return False, "Un compte existe déjà avec cet email."
+        return False, "Un compte existe déjà avec cet email.", None
 
     hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=BCRYPT_ROUNDS))
     data = {
@@ -159,8 +160,9 @@ def register_user(name: str, email: str, password: str) -> tuple[bool, str]:
         "genre_prefs":     [],
     }
     if _create_user(data):
-        return True, "Compte créé avec succès."
-    return False, "Erreur lors de la création du compte. Réessayez."
+        token = _generate_token(email, name)
+        return True, "Compte créé avec succès.", token
+    return False, "Erreur lors de la création du compte. Réessayez.", None
 
 
 # ─────────────────────────────────────────────
