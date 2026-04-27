@@ -1505,35 +1505,84 @@ def page_auth():
 
 def page_recommandations():
     st.markdown('<div class="content-wrap">', unsafe_allow_html=True)
+
     if len(st.session_state.user_ratings) < 3:
-        st.warning("Notez au moins 3 films pour obtenir des recommandations personnalisees.")
+        st.markdown("""
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                    padding:4rem 2rem;text-align:center;">
+            <div style="font-size:3rem;margin-bottom:1rem;opacity:0.3;">🎬</div>
+            <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;color:#44446a;
+                        letter-spacing:2px;text-transform:uppercase;">
+                Notez au moins 3 films
+            </div>
+            <div style="font-size:0.8rem;color:#2a2a45;margin-top:0.5rem;">
+                pour débloquer vos recommandations personnalisées
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        if st.button("User-Based", use_container_width=True):
-            st.session_state.rec_method = "user"
-    with c2:
-        if st.button("Item-Based", use_container_width=True):
-            st.session_state.rec_method = "item"
-    with c3:
-        if st.button("Content-Based", use_container_width=True):
-            st.session_state.rec_method = "content"
+    method = st.session_state.get("rec_method", "content")
 
-    method = st.session_state.rec_method
-    method_labels = {"user": "User-Based CF", "item": "Item-Based CF", "content": "Content-Based"}
-    method_descs = {
-        "user": "Recommande ce qu'ont aime des utilisateurs similaires.",
-        "item": "Recommande des films similaires a ceux que vous avez aimes.",
-        "content": "Recommande des films avec les memes genres que vos preferes.",
+    # ── Tabs méthodes stylés ──
+    methods = {
+        "content": ("Content-Based",  "#7c5cbf", "Genres similaires à vos favoris"),
+        "user":    ("User-Based CF",  "#2e86ab", "Ce qu'aiment les utilisateurs similaires"),
+        "item":    ("Item-Based CF",  "#e07b39", "Films similaires à ceux que vous avez aimés"),
     }
+
+    tabs_html = '<div style="display:flex;gap:0.6rem;margin-bottom:2rem;">'
+    for key, (label, color, _) in methods.items():
+        is_active = key == method
+        if is_active:
+            tabs_html += f'''<div style="
+                padding:0.55rem 1.4rem;border-radius:24px;
+                background:{color};color:#fff;
+                font-family:Oswald,sans-serif;font-size:0.8rem;
+                font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
+                cursor:pointer;border:2px solid {color};">
+                {label}
+            </div>'''
+        else:
+            tabs_html += f'''<div style="
+                padding:0.55rem 1.4rem;border-radius:24px;
+                background:transparent;color:#44446a;
+                font-family:Oswald,sans-serif;font-size:0.8rem;
+                font-weight:500;letter-spacing:1.5px;text-transform:uppercase;
+                cursor:pointer;border:2px solid #1e1e38;">
+                {label}
+            </div>'''
+    tabs_html += '</div>'
+    st.markdown(tabs_html, unsafe_allow_html=True)
+
+    # Boutons invisibles pour changer de méthode
+    btn_cols = st.columns(3)
+    with btn_cols[0]:
+        if st.button("Content-Based", use_container_width=True, key="btn_content"):
+            st.session_state.rec_method = "content"
+            st.rerun()
+    with btn_cols[1]:
+        if st.button("User-Based", use_container_width=True, key="btn_user"):
+            st.session_state.rec_method = "user"
+            st.rerun()
+    with btn_cols[2]:
+        if st.button("Item-Based", use_container_width=True, key="btn_item"):
+            st.session_state.rec_method = "item"
+            st.rerun()
+
+    method_label, method_color, method_desc = methods[method]
+
+    # ── Description méthode ──
     st.markdown(f"""
-    <div style="background:#0d0d1a;border:1px solid #1e1e38;border-radius:8px;padding:12px 16px;margin:12px 0 20px;">
-        <div style="font-family:'Oswald',sans-serif;font-size:0.85rem;color:#e50914;letter-spacing:1px;">
-            {method_labels[method]}
+    <div style="background:linear-gradient(135deg,rgba(255,255,255,0.02),rgba(255,255,255,0.005));
+                border:1px solid #1a1a30;border-left:3px solid {method_color};
+                border-radius:8px;padding:1rem 1.4rem;margin-bottom:2rem;">
+        <div style="font-size:0.7rem;color:{method_color};letter-spacing:2px;
+                    text-transform:uppercase;font-weight:600;margin-bottom:0.3rem;">
+            {method_label}
         </div>
-        <div style="font-size:0.8rem;color:#6666aa;margin-top:4px;">{method_descs[method]}</div>
+        <div style="font-size:0.85rem;color:#6666aa;">{method_desc}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1541,26 +1590,115 @@ def page_recommandations():
         results = recommend_live(st.session_state.user_ratings, method=method, n=5)
 
     if results.empty:
-        st.warning("Pas assez de donnees pour generer des recommandations.")
+        st.markdown("""
+        <div style="text-align:center;padding:3rem;color:#2a2a45;font-size:0.85rem;">
+            Pas assez de données. Notez plus de films.
+        </div>
+        """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
+    # ── Titre section ──
     st.markdown(f"""
-    <div class="section-header">
-        <div class="section-title">Votre Top-5 — {method_labels[method]}</div>
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+        <div style="width:3px;height:1.4rem;background:{method_color};border-radius:2px;"></div>
+        <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:#c0c0d8;
+                    letter-spacing:2.5px;text-transform:uppercase;">
+            Votre Top 5
+        </div>
+        <div style="flex:1;height:1px;background:linear-gradient(to right,#1a1a30,transparent);"></div>
     </div>
     """, unsafe_allow_html=True)
 
+    # ── Cards horizontales premium ──
     for i, row in enumerate(results.itertuples(), 1):
-        col_p, col_c = st.columns([1, 6])
-        with col_p:
+        match = items_with_stats[items_with_stats['title'] == row.title]
+        iid = int(match.iloc[0]['item_id']) if not match.empty else None
+        score_val = float(row.score)
+        score_pct = min(int(score_val * 100), 100) if score_val <= 1 else min(int(score_val * 20), 100)
+        genres_html = ""
+        if hasattr(row, "genres_list") and isinstance(row.genres_list, list):
+            genres_html = " · ".join(row.genres_list[:3])
+
+        _t_r = st.query_params.get('t', '')
+        href = f"?film={iid}&t={_t_r}" if (_t_r and iid) else (f"?film={iid}" if iid else "#")
+
+        col_num, col_poster, col_info = st.columns([0.3, 1, 6])
+
+        with col_num:
+            st.markdown(f"""
+            <div style="height:110px;display:flex;align-items:center;justify-content:center;">
+                <div style="font-family:'Oswald',sans-serif;font-size:2rem;font-weight:700;
+                            color:#1a1a30;letter-spacing:-1px;">
+                    {i:02d}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_poster:
             poster = fetch_poster(row.title)
             if poster:
-                st.image(poster, width=70)
-        with col_c:
-            match = items_with_stats[items_with_stats['title'] == row.title]
-            iid = int(match.iloc[0]['item_id']) if not match.empty else None
-            render_rec_row(i, row, item_id=iid)
+                st.markdown(f"""
+                <a href="{href}" target="_self" style="text-decoration:none;">
+                    <img src="{poster}" style="width:100%;border-radius:6px;
+                         box-shadow:0 8px 24px rgba(0,0,0,0.6);
+                         transition:transform 0.2s;display:block;" />
+                </a>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style="width:100%;aspect-ratio:2/3;background:#111128;
+                            border-radius:6px;display:flex;align-items:center;
+                            justify-content:center;color:#222240;font-size:1.5rem;">🎬</div>
+                """, unsafe_allow_html=True)
+
+        with col_info:
+            st.markdown(f"""
+            <a href="{href}" target="_self" style="text-decoration:none;display:block;height:100%;">
+            <div style="background:linear-gradient(135deg,#0d0d1a,#0a0a16);
+                        border:1px solid #1a1a30;border-radius:10px;
+                        padding:1.2rem 1.5rem;height:110px;
+                        display:flex;flex-direction:column;justify-content:space-between;
+                        transition:border-color 0.2s;">
+
+                <div>
+                    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.4rem;">
+                        <span style="font-size:0.58rem;font-weight:700;letter-spacing:2px;
+                                     color:#fff;background:{method_color};
+                                     padding:2px 8px;border-radius:3px;">
+                            {method_label.upper()}
+                        </span>
+                        <span style="font-size:0.65rem;color:#2a2a45;letter-spacing:1px;">
+                            #{i}
+                        </span>
+                        <span style="margin-left:auto;color:#22223a;font-size:0.8rem;">→</span>
+                    </div>
+                    <div style="font-family:'Oswald',sans-serif;font-size:1.15rem;
+                                color:#f0f0ff;font-weight:500;line-height:1.2;
+                                white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        {row.title}
+                    </div>
+                    <div style="font-size:0.7rem;color:#33334a;margin-top:0.2rem;">
+                        {genres_html}
+                    </div>
+                </div>
+
+                <div>
+                    <div style="background:#111128;border-radius:3px;height:2px;overflow:hidden;margin-bottom:4px;">
+                        <div style="height:2px;border-radius:3px;
+                                    background:linear-gradient(90deg,{method_color},#ff6666);
+                                    width:{score_pct}%;"></div>
+                    </div>
+                    <div style="font-size:0.6rem;color:#222240;letter-spacing:1px;">
+                        Score {score_val:.4f}
+                    </div>
+                </div>
+
+            </div>
+            </a>
+            """, unsafe_allow_html=True)
+
+        st.markdown('<div style="margin-bottom:0.5rem;"></div>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
