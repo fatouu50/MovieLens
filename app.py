@@ -1678,50 +1678,40 @@ def page_evaluation():
 # ─────────────────────────────────────────────────────────────
 
 def _star_widget(mid: int, current: int) -> int | None:
-    """Retourne la nouvelle note (1-5) si changée, sinon None."""
-    stars_html = ""
+    """Retourne la nouvelle note (1-5) si changée, sinon None — boutons natifs Streamlit."""
+    st.markdown("""
+    <style>
+    div[data-testid="stHorizontalBlock"] button {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 2px !important;
+        font-size: 1.3rem !important;
+        min-height: 0 !important;
+        line-height: 1 !important;
+        box-shadow: none !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    star_cols = st.columns(6)
+    new_val = None
+
     for s in range(1, 6):
-        filled = "filled" if s <= current else ""
-        stars_html += f'<span class="star {filled}" data-v="{s}">&#9733;</span>'
-    clear_btn = f'<span class="clear-btn" onclick="clearRating()">&#10005;</span>' if current > 0 else ""
-    widget = f"""<!DOCTYPE html><html><head><style>
-*{{margin:0;padding:0;box-sizing:border-box;}}
-body{{background:transparent;overflow:hidden;display:flex;align-items:center;gap:4px;padding:2px 0;}}
-.star{{font-size:1.4rem;cursor:pointer;color:#1e1e38;transition:color 0.1s,transform 0.1s;line-height:1;}}
-.star.filled{{color:#e50914;}}
-.star:hover,.star:hover~.star{{color:#ff4444 !important;}}
-.stars:hover .star{{color:#ff4444;}}
-.stars:hover .star:hover~.star{{color:#1e1e38;}}
-.clear-btn{{font-size:0.65rem;color:#333355;cursor:pointer;padding:0 4px;transition:color 0.1s;margin-left:2px;}}
-.clear-btn:hover{{color:#e50914;}}
-</style></head><body>
-<div class="stars" id="stars">{stars_html}</div>{clear_btn}
-<script>
-const stars=document.querySelectorAll(".star");
-stars.forEach(s=>{{
-  s.addEventListener("mouseover",()=>{{
-    const v=+s.dataset.v;
-    stars.forEach(x=>x.classList.toggle("filled",+x.dataset.v<=v));
-  }});
-  s.addEventListener("mouseout",()=>{{
-    stars.forEach(x=>x.classList.toggle("filled",x.classList.contains("orig")));
-  }});
-  s.addEventListener("click",()=>{{
-    const v=+s.dataset.v;
-    stars.forEach(x=>x.classList.remove("orig"));
-    stars.forEach(x=>{{if(+x.dataset.v<=v)x.classList.add("orig","filled");else x.classList.remove("filled");}});
-    window.parent.postMessage({{type:"streamlit:setComponentValue",value:v}},"*");
-  }});
-}});
-document.querySelectorAll(".star.filled").forEach(x=>x.classList.add("orig"));
-function clearRating(){{
-  stars.forEach(x=>{{x.classList.remove("filled","orig");}});
-  window.parent.postMessage({{type:"streamlit:setComponentValue",value:0}},"*");
-}}
-</script></body></html>"""
-    val = components.html(widget, height=34, scrolling=False)
-    if val is not None and isinstance(val, (int, float)) and int(val) != current:
-        return int(val)
+        icon = "★" if s <= current else "☆"
+        color = "#e50914" if s <= current else "#44446a"
+        with star_cols[s - 1]:
+            st.markdown(f'<div style="text-align:center;font-size:1.4rem;color:{color};line-height:1;">{icon}</div>', unsafe_allow_html=True)
+            if st.button(" ", key=f"star_{mid}_{s}", help=f"{s} étoile{'s' if s > 1 else ''}"):
+                new_val = s
+
+    # Bouton effacer si déjà noté
+    if current > 0:
+        with star_cols[5]:
+            if st.button("✕", key=f"clear_{mid}", help="Supprimer la note"):
+                new_val = 0
+
+    if new_val is not None and new_val != current:
+        return new_val
     return None
 
 
