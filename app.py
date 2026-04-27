@@ -761,7 +761,14 @@ section.main {
 
 [data-testid="stSpinner"] > div { border-top-color: #e50914 !important; }
 hr { border-color: #111128 !important; }
-.stAlert { display: none !important; }
+/* Alertes visibles uniquement dans la page auth */
+[data-testid="stAlert"] {
+    border-radius: 8px !important;
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 0.82rem !important;
+}
+/* Masquer alertes hors auth (ex: warning use_container_width) */
+.main .block-container > div > div > div > [data-testid="stAlert"] { display: none !important; }
 [data-testid="stMarkdownContainer"] > p:empty { display: none; }
 
 /* ── SHIMMER LOADING ──────────────────────────────── */
