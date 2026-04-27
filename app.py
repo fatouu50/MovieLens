@@ -1679,32 +1679,15 @@ def page_evaluation():
 
 def _star_widget(mid: int, current: int) -> int | None:
     """Retourne la nouvelle note (1-5) si changée, sinon None — boutons natifs Streamlit."""
-    st.markdown("""
-    <style>
-    div[data-testid="stHorizontalBlock"] button {
-        background: transparent !important;
-        border: none !important;
-        padding: 0 2px !important;
-        font-size: 1.3rem !important;
-        min-height: 0 !important;
-        line-height: 1 !important;
-        box-shadow: none !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
     star_cols = st.columns(6)
     new_val = None
 
     for s in range(1, 6):
         icon = "★" if s <= current else "☆"
-        color = "#e50914" if s <= current else "#44446a"
         with star_cols[s - 1]:
-            st.markdown(f'<div style="text-align:center;font-size:1.4rem;color:{color};line-height:1;">{icon}</div>', unsafe_allow_html=True)
-            if st.button(" ", key=f"star_{mid}_{s}", help=f"{s} étoile{'s' if s > 1 else ''}"):
+            if st.button(icon, key=f"star_{mid}_{s}", help=f"{s} étoile{'s' if s > 1 else ''}"):
                 new_val = s
 
-    # Bouton effacer si déjà noté
     if current > 0:
         with star_cols[5]:
             if st.button("✕", key=f"clear_{mid}", help="Supprimer la note"):
