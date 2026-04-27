@@ -20,7 +20,7 @@ from src.recommenders import ContentBasedRecommender, recommend_popular
 from auth import (
     register_user, login_user, login_finalize, verify_token,
     get_user_data, save_user_ratings, save_user_genres,
-    send_otp, verify_otp,
+    send_otp, verify_otp, send_reset_otp, reset_password,
 )
 from recommender import (
     load_data as load_reco_data,
@@ -930,6 +930,10 @@ _auth_defaults = {
     # OTP flow
     "otp_pending_email": None,
     "otp_dev_code":      None,
+    # Reset password flow
+    "reset_step":        None,   # None | "otp" | "new_pwd"
+    "reset_email":       None,
+    "reset_dev_code":    None,
 }
 for _k, _v in _auth_defaults.items():
     if _k not in st.session_state:
@@ -1229,8 +1233,81 @@ def page_auth():
         st.markdown('<div class="auth-logo">MovieLens</div>', unsafe_allow_html=True)
         st.markdown('<div class="auth-sub">Systeme de Recommandation</div>', unsafe_allow_html=True)
 
+        # ── FLUX MOT DE PASSE OUBLIÉ : étape OTP ─────────────────
+        if st.session_state.reset_step == "otp":
+            reset_email = st.session_state.reset_email
+
+            st.markdown(f"""
+            <div style="
+                background:#0d0d1a;
+                border:1px solid #1e1e38;
+                border-radius:14px;
+                padding:2rem;
+                text-align:center;
+                margin-bottom:1rem;
+            ">
+                <div style="font-size:2rem;margin-bottom:0.5rem;">🔑</div>
+                <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:#e2e2ee;letter-spacing:2px;text-transform:uppercase;margin-bottom:0.5rem;">
+                    Réinitialisation du mot de passe
+                </div>
+                <div style="font-size:0.82rem;color:#44446a;line-height:1.5;">
+                    Si un compte existe pour <strong style="color:#8888cc;">{reset_email}</strong>,<br>
+                    un code à 6 chiffres vous a été envoyé.<br>
+                    <span style="font-size:0.72rem;">Valide 5 minutes.</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if st.session_state.reset_dev_code:
+                st.info(f"🛠️ **Mode dev** — Code OTP : `{st.session_state.reset_dev_code}`\n\n*(Configurez SMTP dans secrets.toml pour l'envoi réel)*")
+
+            otp_reset = st.text_input(
+                "Code de vérification",
+                key="reset_otp_field",
+                placeholder="000000",
+                max_chars=6,
+            )
+            new_pwd = st.text_input(
+                "Nouveau mot de passe",
+                type="password",
+                key="reset_new_pwd",
+                placeholder="Min. 8 car., 1 maj., 1 chiffre, 1 spécial",
+            )
+            new_pwd2 = st.text_input(
+                "Confirmer le nouveau mot de passe",
+                type="password",
+                key="reset_new_pwd2",
+            )
+
+            if st.button("Réinitialiser mon mot de passe", use_container_width=True, type="primary"):
+                if not otp_reset or len(otp_reset.strip()) != 6:
+                    st.error("Entrez le code à 6 chiffres reçu par email.")
+                elif not new_pwd or not new_pwd2:
+                    st.error("Veuillez remplir les deux champs de mot de passe.")
+                elif new_pwd != new_pwd2:
+                    st.error("Les mots de passe ne correspondent pas.")
+                else:
+                    with st.spinner("Réinitialisation..."):
+                        ok, msg = reset_password(reset_email, otp_reset.strip(), new_pwd)
+                    if ok:
+                        st.success("✅ Mot de passe modifié avec succès ! Vous pouvez maintenant vous connecter.")
+                        st.session_state.reset_step    = None
+                        st.session_state.reset_email   = None
+                        st.session_state.reset_dev_code = None
+                        time.sleep(1.5)
+                        st.rerun()
+                    else:
+                        st.error(msg)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("← Retour à la connexion", use_container_width=False):
+                st.session_state.reset_step     = None
+                st.session_state.reset_email    = None
+                st.session_state.reset_dev_code = None
+                st.rerun()
+
         # ── ÉTAPE OTP : uniquement après inscription ──────────────
-        if st.session_state.otp_pending_email:
+        elif st.session_state.otp_pending_email:
             pending_email = st.session_state.otp_pending_email
 
             st.markdown(f"""
@@ -1332,6 +1409,12 @@ def page_auth():
                         else:
                             st.error(msg)
 
+                # ── Lien Mot de passe oublié ──────────────────────
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("Mot de passe oublié ?", use_container_width=False, key="forgot_pwd_btn"):
+                    st.session_state.reset_step  = "request"
+                    st.rerun()
+
                 st.caption("Connexion sécurisée — JWT + bcrypt")
 
             with tab_register:
@@ -1360,6 +1443,51 @@ def page_auth():
                             st.rerun()
                         else:
                             st.error(msg)
+
+        # ── FORMULAIRE DE DEMANDE DE RÉINITIALISATION ─────────────
+        if st.session_state.reset_step == "request":
+            st.markdown("""
+            <div style="
+                background:#0d0d1a;
+                border:1px solid #1e1e38;
+                border-radius:14px;
+                padding:2rem;
+                margin-top:1.5rem;
+            ">
+                <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:#e2e2ee;letter-spacing:2px;text-transform:uppercase;margin-bottom:1rem;">
+                    🔑 Mot de passe oublié
+                </div>
+                <div style="font-size:0.82rem;color:#44446a;margin-bottom:0.5rem;">
+                    Entrez votre adresse email. Si un compte existe, vous recevrez un code de réinitialisation.
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+            reset_email_input = st.text_input(
+                "Adresse e-mail",
+                key="forgot_email_input",
+                placeholder="vous@exemple.com",
+            )
+            col_send, col_cancel = st.columns([2, 1])
+            with col_send:
+                if st.button("Envoyer le code", use_container_width=True, type="primary", key="send_reset_btn"):
+                    if not reset_email_input or "@" not in reset_email_input:
+                        st.error("Veuillez entrer une adresse email valide.")
+                    else:
+                        with st.spinner("Envoi en cours..."):
+                            ok, smsg = send_reset_otp(reset_email_input.strip())
+                        st.session_state.reset_email = reset_email_input.strip().lower()
+                        st.session_state.reset_step  = "otp"
+                        if not ok and "[DEV]" in smsg:
+                            import re as _re
+                            m = _re.search(r":\s*(\d{6})\s*", smsg)
+                            if m:
+                                st.session_state.reset_dev_code = m.group(1)
+                        st.rerun()
+            with col_cancel:
+                if st.button("Annuler", use_container_width=True, key="cancel_reset_btn"):
+                    st.session_state.reset_step = None
+                    st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
 

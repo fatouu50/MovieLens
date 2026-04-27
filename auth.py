@@ -433,3 +433,110 @@ def save_user_ratings(email: str, ratings: dict):
 
 def save_user_genres(email: str, genres: list):
     _update_user(email.lower(), {"genre_prefs": genres})
+
+
+# ─────────────────────────────────────────────
+# MOT DE PASSE OUBLIÉ
+# ─────────────────────────────────────────────
+
+def send_reset_otp(email: str) -> tuple[bool, str]:
+    """
+    Génère un OTP de réinitialisation et l'envoie par email.
+    Retourne (succès, message).
+    """
+    email = email.strip().lower()
+    user = _get_user(email)
+    if not user:
+        # Message volontairement neutre pour éviter l'énumération d'emails
+        return True, "Si un compte existe pour cet email, un code a été envoyé."
+
+    otp = _generate_otp()
+    otp_expires = time.time() + OTP_TTL
+
+    _update_user(email, {
+        "otp_code":    otp,
+        "otp_expires": otp_expires,
+    })
+
+    # Email HTML pour la réinitialisation
+    subject = "MovieLens — Réinitialisation de votre mot de passe"
+    name = user.get("name", "")
+    html_body = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {{ font-family: 'Helvetica Neue', Arial, sans-serif; background: #080810; color: #e2e2ee; margin: 0; padding: 0; }}
+    .container {{ max-width: 480px; margin: 40px auto; background: #0d0d1a; border: 1px solid #1e1e38; border-radius: 14px; padding: 40px 32px; }}
+    .logo {{ font-size: 2rem; font-weight: 700; letter-spacing: 4px; color: #e50914; text-transform: uppercase; text-align: center; margin-bottom: 8px; }}
+    .sub {{ font-size: 0.7rem; color: #333355; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 32px; }}
+    .greeting {{ font-size: 0.95rem; color: #a0a0c0; margin-bottom: 24px; }}
+    .otp-box {{ background: #111128; border: 1px solid #e50914; border-radius: 10px; text-align: center; padding: 24px; margin: 24px 0; }}
+    .otp-code {{ font-size: 2.8rem; font-weight: 700; letter-spacing: 12px; color: #ffffff; font-family: monospace; }}
+    .otp-note {{ font-size: 0.75rem; color: #44446a; margin-top: 10px; }}
+    .footer-note {{ font-size: 0.72rem; color: #222240; text-align: center; margin-top: 28px; line-height: 1.5; }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">MovieLens</div>
+    <div class="sub">Système de Recommandation</div>
+    <div class="greeting">Bonjour {name} !</div>
+    <p style="color:#8888aa;font-size:0.9rem;">Vous avez demandé la réinitialisation de votre mot de passe. Utilisez ce code pour en définir un nouveau :</p>
+    <div class="otp-box">
+      <div class="otp-code">{otp}</div>
+      <div class="otp-note">Valide pendant 5 minutes</div>
+    </div>
+    <p style="color:#6666aa;font-size:0.85rem;">Si vous n'avez pas fait cette demande, ignorez cet email. Votre mot de passe reste inchangé.</p>
+    <div class="footer-note">MovieLens · Plateforme de recommandation de films<br>Ce code est à usage unique et confidentiel.</div>
+  </div>
+</body>
+</html>"""
+
+    if not SMTP_HOST or not SMTP_USER:
+        # Mode dev : retourne le code dans le message
+        return False, f"[DEV] SMTP non configuré. Code OTP : {otp} (valable 5 min)"
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = SMTP_FROM or SMTP_USER
+        msg["To"]      = email
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_FROM or SMTP_USER, email, msg.as_string())
+
+        return True, "Si un compte existe pour cet email, un code a été envoyé."
+    except Exception as e:
+        return False, f"Erreur lors de l'envoi de l'email : {str(e)}"
+
+
+def reset_password(email: str, otp_code: str, new_password: str) -> tuple[bool, str]:
+    """
+    Vérifie l'OTP et met à jour le mot de passe.
+    Retourne (succès, message).
+    """
+    email = email.strip().lower()
+
+    valid, vmsg = verify_otp(email, otp_code)
+    if not valid:
+        return False, vmsg
+
+    ok, errmsg = _validate_password(new_password)
+    if not ok:
+        return False, errmsg
+
+    hashed = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt(rounds=BCRYPT_ROUNDS))
+    updated = _update_user(email, {
+        "password_hash":   hashed.decode("utf-8"),
+        "failed_attempts": 0,
+        "last_failed_at":  0,
+    })
+
+    if updated:
+        return True, "Mot de passe réinitialisé avec succès."
+    return False, "Erreur lors de la mise à jour. Réessayez."
