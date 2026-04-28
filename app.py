@@ -1525,49 +1525,26 @@ def page_recommandations():
 
     method = st.session_state.get("rec_method", "content")
 
-    # ── Tabs méthodes stylés ──
     methods = {
-        "content": ("Content-Based",  "#7c5cbf", "Genres similaires à vos favoris"),
-        "user":    ("User-Based CF",  "#2e86ab", "Ce qu'aiment les utilisateurs similaires"),
-        "item":    ("Item-Based CF",  "#e07b39", "Films similaires à ceux que vous avez aimés"),
+        "content": ("Content-Based", "#7c5cbf", "Genres similaires a vos favoris"),
+        "user":    ("User-Based CF", "#2e86ab", "Ce qu'aiment les utilisateurs similaires"),
+        "item":    ("Item-Based CF", "#e07b39", "Films similaires a ceux que vous avez aimes"),
     }
 
-    tabs_html = '<div style="display:flex;gap:0.6rem;margin-bottom:2rem;">'
-    for key, (label, color, _) in methods.items():
-        is_active = key == method
-        if is_active:
-            tabs_html += f'''<div style="
-                padding:0.55rem 1.4rem;border-radius:24px;
-                background:{color};color:#fff;
-                font-family:Oswald,sans-serif;font-size:0.8rem;
-                font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
-                cursor:pointer;border:2px solid {color};">
-                {label}
-            </div>'''
-        else:
-            tabs_html += f'''<div style="
-                padding:0.55rem 1.4rem;border-radius:24px;
-                background:transparent;color:#44446a;
-                font-family:Oswald,sans-serif;font-size:0.8rem;
-                font-weight:500;letter-spacing:1.5px;text-transform:uppercase;
-                cursor:pointer;border:2px solid #1e1e38;">
-                {label}
-            </div>'''
-    tabs_html += '</div>'
-    st.markdown(tabs_html, unsafe_allow_html=True)
-
-    # Boutons invisibles pour changer de méthode
-    btn_cols = st.columns(3)
+    btn_cols = st.columns([1.4, 1.4, 1.4, 5])
     with btn_cols[0]:
-        if st.button("Content-Based", use_container_width=True, key="btn_content"):
+        label_c = "● Content-Based" if method == "content" else "Content-Based"
+        if st.button(label_c, use_container_width=True, key="btn_content"):
             st.session_state.rec_method = "content"
             st.rerun()
     with btn_cols[1]:
-        if st.button("User-Based", use_container_width=True, key="btn_user"):
+        label_u = "● User-Based CF" if method == "user" else "User-Based CF"
+        if st.button(label_u, use_container_width=True, key="btn_user"):
             st.session_state.rec_method = "user"
             st.rerun()
     with btn_cols[2]:
-        if st.button("Item-Based", use_container_width=True, key="btn_item"):
+        label_i = "● Item-Based CF" if method == "item" else "Item-Based CF"
+        if st.button(label_i, use_container_width=True, key="btn_item"):
             st.session_state.rec_method = "item"
             st.rerun()
 
@@ -1653,50 +1630,33 @@ def page_recommandations():
                 """, unsafe_allow_html=True)
 
         with col_info:
-            st.markdown(f"""
-            <a href="{href}" target="_self" style="text-decoration:none;display:block;height:100%;">
-            <div style="background:linear-gradient(135deg,#0d0d1a,#0a0a16);
-                        border:1px solid #1a1a30;border-radius:10px;
-                        padding:1.2rem 1.5rem;height:110px;
-                        display:flex;flex-direction:column;justify-content:space-between;
-                        transition:border-color 0.2s;">
-
-                <div>
-                    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.4rem;">
-                        <span style="font-size:0.58rem;font-weight:700;letter-spacing:2px;
-                                     color:#fff;background:{method_color};
-                                     padding:2px 8px;border-radius:3px;">
-                            {method_label.upper()}
-                        </span>
-                        <span style="font-size:0.65rem;color:#2a2a45;letter-spacing:1px;">
-                            #{i}
-                        </span>
-                        <span style="margin-left:auto;color:#22223a;font-size:0.8rem;">→</span>
-                    </div>
-                    <div style="font-family:'Oswald',sans-serif;font-size:1.15rem;
-                                color:#f0f0ff;font-weight:500;line-height:1.2;
-                                white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                        {row.title}
-                    </div>
-                    <div style="font-size:0.7rem;color:#33334a;margin-top:0.2rem;">
-                        {genres_html}
-                    </div>
-                </div>
-
-                <div>
-                    <div style="background:#111128;border-radius:3px;height:2px;overflow:hidden;margin-bottom:4px;">
-                        <div style="height:2px;border-radius:3px;
-                                    background:linear-gradient(90deg,{method_color},#ff6666);
-                                    width:{score_pct}%;"></div>
-                    </div>
-                    <div style="font-size:0.6rem;color:#222240;letter-spacing:1px;">
-                        Score {score_val:.4f}
-                    </div>
-                </div>
-
-            </div>
-            </a>
-            """, unsafe_allow_html=True)
+            title_safe = row.title.replace("'", "&#39;").replace('"', '&quot;')
+            st.markdown(
+                f'<a href="{href}" target="_self" style="text-decoration:none;display:block;">'
+                f'<div style="background:#0d0d1a;border:1px solid #1a1a30;border-radius:10px;'
+                f'padding:1.2rem 1.5rem;height:110px;display:flex;flex-direction:column;'
+                f'justify-content:space-between;">'
+                f'<div>'
+                f'<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.4rem;">'
+                f'<span style="font-size:0.58rem;font-weight:700;letter-spacing:2px;color:#fff;'
+                f'background:{method_color};padding:2px 8px;border-radius:3px;">{method_label.upper()}</span>'
+                f'<span style="font-size:0.65rem;color:#2a2a45;">#{i}</span>'
+                f'<span style="margin-left:auto;color:#22223a;">&#8594;</span>'
+                f'</div>'
+                f'<div style="font-family:Oswald,sans-serif;font-size:1.1rem;color:#f0f0ff;'
+                f'font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+                f'{title_safe}</div>'
+                f'<div style="font-size:0.7rem;color:#33334a;margin-top:0.2rem;">{genres_html}</div>'
+                f'</div>'
+                f'<div>'
+                f'<div style="background:#111128;border-radius:3px;height:2px;overflow:hidden;margin-bottom:4px;">'
+                f'<div style="height:2px;border-radius:3px;background:linear-gradient(90deg,{method_color},#ff6666);'
+                f'width:{score_pct}%;"></div></div>'
+                f'<div style="font-size:0.6rem;color:#222240;">Score {score_val:.4f}</div>'
+                f'</div>'
+                f'</div></a>',
+                unsafe_allow_html=True
+            )
 
         st.markdown('<div style="margin-bottom:0.5rem;"></div>', unsafe_allow_html=True)
 
