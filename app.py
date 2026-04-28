@@ -1883,19 +1883,51 @@ def page_live():
     live_ratings = dict(st.session_state.user_ratings)
 
     with left_col:
-        st.markdown('<div style="font-size:0.8rem;color:#6666aa;letter-spacing:1px;text-transform:uppercase;margin-bottom:0.8rem;">Notez des films</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-size:0.7rem;color:#44446a;letter-spacing:2px;text-transform:uppercase;margin-bottom:1rem;">Notez des films</div>', unsafe_allow_html=True)
         for _, row in top_films.iterrows():
             mid = int(row['item_id'])
             current = int(live_ratings.get(str(mid), 0))
-            with st.container(border=True):
-                st.caption(f"**{row['title']}**")
-                new_r = st.select_slider(
-                    "", options=["—","1","2","3","4","5"],
-                    value=str(current) if current > 0 else "—",
-                    key=f"live_{mid}", label_visibility="collapsed"
-                )
-                if new_r != "—":
-                    live_ratings[str(mid)] = int(new_r)
+
+            # Ligne : poster miniature + titre + étoiles
+            poster = fetch_poster(row['title'])
+            poster_html = f'<img src="{poster}" style="width:36px;height:54px;object-fit:cover;border-radius:4px;flex-shrink:0;">' if poster else '<div style="width:36px;height:54px;background:#111128;border-radius:4px;flex-shrink:0;"></div>'
+            stars_display = "".join(["★" if s <= current else "☆" for s in range(1, 6)])
+            star_color = "#e50914" if current > 0 else "#2a2a45"
+            title_short = row['title'][:28] + "…" if len(row['title']) > 28 else row['title']
+
+            st.markdown(
+                f'<div style="display:flex;align-items:center;gap:0.8rem;'
+                f'background:#0d0d1a;border:1px solid #1a1a30;border-radius:8px;'
+                f'padding:0.6rem 0.8rem;margin-bottom:0.5rem;">'
+                f'{poster_html}'
+                f'<div style="flex:1;min-width:0;">'
+                f'<div style="font-size:0.78rem;color:#d0d0e8;font-weight:500;'
+                f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{title_short}</div>'
+                f'<div style="font-size:1rem;color:{star_color};letter-spacing:2px;margin-top:2px;">{stars_display}</div>'
+                f'</div></div>',
+                unsafe_allow_html=True
+            )
+
+            # Boutons étoiles natifs invisibles mais fonctionnels
+            star_cols = st.columns(6)
+            new_r = None
+            for s in range(1, 6):
+                with star_cols[s - 1]:
+                    if st.button(str(s), key=f"live_star_{mid}_{s}", help=f"{s} étoile{'s' if s>1 else ''}"):
+                        new_r = s
+            with star_cols[5]:
+                if current > 0 and st.button("✕", key=f"live_clear_{mid}", help="Effacer"):
+                    new_r = 0
+
+            if new_r is not None:
+                if new_r == 0:
+                    live_ratings.pop(str(mid), None)
+                else:
+                    live_ratings[str(mid)] = new_r
+                st.session_state.user_ratings = live_ratings
+                save_user_ratings(st.session_state.user_email, live_ratings)
+                st.rerun()
+
         if live_ratings != st.session_state.user_ratings:
             st.session_state.user_ratings = live_ratings
             save_user_ratings(st.session_state.user_email, live_ratings)
